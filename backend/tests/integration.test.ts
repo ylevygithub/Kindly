@@ -2,40 +2,601 @@ import { describe, test, expect } from "bun:test";
 import { api, authenticatedApi, signUpTestUser, expectStatus, connectWebSocket, connectAuthenticatedWebSocket, waitForMessage } from "./helpers";
 
 describe("API Integration Tests", () => {
-  // Shared state for chaining tests (e.g., created resource IDs, auth tokens)
-  // let authToken: string;
-  // let resourceId: string;
+  let authToken: string;
+  let userId: string;
+  let complimentId: string;
+  let secondUserToken: string;
+  let secondUserId: string;
 
-  // TODO: Add integration tests here.
-  // Tests run sequentially within describe, so you can chain state between them.
-  //
-  // Example without auth:
-  //
-  // test("Create resource", async () => {
-  //   const res = await api("/api/resources", {
-  //     method: "POST",
-  //     headers: { "Content-Type": "application/json" },
-  //     body: JSON.stringify({ name: "Test" }),
-  //   });
-  //   await expectStatus(res, 201);
-  //   const data = await res.json();
-  //   resourceId = data.id;
-  // });
-  //
-  // Example with auth (cleanup is automatic):
-  //
-  // test("Sign up test user", async () => {
-  //   const { token, user } = await signUpTestUser();
-  //   authToken = token;
-  //   expect(authToken).toBeDefined();
-  // });
-  //
-  // test("Create authenticated resource", async () => {
-  //   const res = await authenticatedApi("/api/resources", authToken, {
-  //     method: "POST",
-  //     headers: { "Content-Type": "application/json" },
-  //     body: JSON.stringify({ name: "Test" }),
-  //   });
-  //   await expectStatus(res, 201);
-  // });
+  // Setup: Sign up first test user
+  test("Sign up first test user", async () => {
+    const { token, user } = await signUpTestUser();
+    authToken = token;
+    userId = user.id;
+    expect(authToken).toBeDefined();
+    expect(userId).toBeDefined();
+  });
+
+  // Profile Tests
+  test("Setup user profile", async () => {
+    const res = await authenticatedApi("/api/profiles/setup", authToken, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: "testuser123",
+        avatar_emoji: "😀",
+      }),
+    });
+    await expectStatus(res, 200, 201);
+  });
+
+  test("Get current user profile", async () => {
+    const res = await authenticatedApi("/api/profiles/me", authToken);
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(data.id).toBeDefined();
+    expect(data.username).toBeDefined();
+    expect(data.avatar_emoji).toBeDefined();
+    expect(typeof data.credits).toBe("number");
+    expect(typeof data.streak_days).toBe("number");
+    expect(typeof data.is_premium).toBe("boolean");
+  });
+
+  test("Update profile with valid data", async () => {
+    const res = await authenticatedApi("/api/profiles/me", authToken, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: "updateduser456",
+        avatar_emoji: "😎",
+      }),
+    });
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(data.username).toBe("updateduser456");
+    expect(data.avatar_emoji).toBe("😎");
+  });
+
+  test("Update profile - username too short (validation error)", async () => {
+    const res = await authenticatedApi("/api/profiles/me", authToken, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: "ab", // minLength: 3
+        avatar_emoji: "😀",
+      }),
+    });
+    await expectStatus(res, 400);
+  });
+
+  test("Update profile - username too long (validation error)", async () => {
+    const res = await authenticatedApi("/api/profiles/me", authToken, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: "a".repeat(21), // maxLength: 20
+        avatar_emoji: "😀",
+      }),
+    });
+    await expectStatus(res, 400);
+  });
+
+  test("Setup profile - missing username (validation error)", async () => {
+    const res = await authenticatedApi("/api/profiles/setup", authToken, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        avatar_emoji: "😀",
+      }),
+    });
+    await expectStatus(res, 400);
+  });
+
+  test("Setup profile - missing avatar_emoji (validation error)", async () => {
+    const res = await authenticatedApi("/api/profiles/setup", authToken, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: "someuser",
+      }),
+    });
+    await expectStatus(res, 400);
+  });
+
+  // Setup: Sign up second test user for compliment tests
+  test("Sign up second test user", async () => {
+    const { token, user } = await signUpTestUser();
+    secondUserToken = token;
+    secondUserId = user.id;
+    expect(secondUserToken).toBeDefined();
+    expect(secondUserId).toBeDefined();
+  });
+
+  test("Setup second user profile", async () => {
+    const res = await authenticatedApi("/api/profiles/setup", secondUserToken, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: "seconduser789",
+        avatar_emoji: "🎉",
+      }),
+    });
+    await expectStatus(res, 200, 201);
+  });
+
+  // Contact Matching Tests
+  test("Match contacts by phone hashes", async () => {
+    const res = await authenticatedApi("/api/contacts/match", authToken, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        phone_hashes: ["hash_abc123", "hash_def456"],
+      }),
+    });
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(data.matches).toBeDefined();
+    expect(Array.isArray(data.matches)).toBe(true);
+  });
+
+  test("Match contacts - empty phone hashes", async () => {
+    const res = await authenticatedApi("/api/contacts/match", authToken, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        phone_hashes: [],
+      }),
+    });
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(Array.isArray(data.matches)).toBe(true);
+  });
+
+  // Compliments Tests
+  test("Get compliments received", async () => {
+    const res = await authenticatedApi("/api/compliments", authToken);
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(data.compliments).toBeDefined();
+    expect(Array.isArray(data.compliments)).toBe(true);
+    expect(typeof data.total_received).toBe("number");
+  });
+
+  test("Send compliment to another user", async () => {
+    const res = await authenticatedApi("/api/compliments", secondUserToken, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        recipient_id: userId,
+        text: "You are such an amazing person with great personality!",
+        category: "Personnalité",
+      }),
+    });
+    // 201 for success, 402 if insufficient credits
+    await expectStatus(res, 201, 402);
+    if (res.status === 201) {
+      const data = await res.json();
+      complimentId = data.id;
+      expect(complimentId).toBeDefined();
+      expect(data.recipient_id).toBe(userId);
+      expect(data.category).toBe("Personnalité");
+    }
+  });
+
+  test("Send compliment - text too short (validation error)", async () => {
+    const res = await authenticatedApi("/api/compliments", secondUserToken, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        recipient_id: userId,
+        text: "Hi!", // minLength: 5
+        category: "Humour",
+      }),
+    });
+    await expectStatus(res, 400);
+  });
+
+  test("Send compliment - text too long (validation error)", async () => {
+    const res = await authenticatedApi("/api/compliments", secondUserToken, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        recipient_id: userId,
+        text: "a".repeat(301), // maxLength: 300
+        category: "Look",
+      }),
+    });
+    await expectStatus(res, 400);
+  });
+
+  test("Send compliment - invalid category (validation error)", async () => {
+    const res = await authenticatedApi("/api/compliments", secondUserToken, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        recipient_id: userId,
+        text: "You have amazing talent!",
+        category: "InvalidCategory",
+      }),
+    });
+    await expectStatus(res, 400);
+  });
+
+  test("Send compliment - missing required field (validation error)", async () => {
+    const res = await authenticatedApi("/api/compliments", secondUserToken, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        recipient_id: userId,
+        // missing text
+        category: "Talent",
+      }),
+    });
+    await expectStatus(res, 400);
+  });
+
+  // Compliment Detail Tests (only run if complimentId exists)
+  test("Get guess suggestions for compliment", async () => {
+    if (!complimentId) {
+      return; // Skip if no compliment was created
+    }
+    const res = await authenticatedApi(
+      `/api/compliments/${complimentId}/guess-suggestions`,
+      authToken
+    );
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(data.suggestions).toBeDefined();
+    expect(Array.isArray(data.suggestions)).toBe(true);
+  });
+
+  test("Get guess suggestions - compliment not found (404)", async () => {
+    const res = await authenticatedApi(
+      "/api/compliments/00000000-0000-0000-0000-000000000000/guess-suggestions",
+      authToken
+    );
+    await expectStatus(res, 404);
+  });
+
+  test("Guess compliment sender", async () => {
+    if (!complimentId) {
+      return; // Skip if no compliment was created
+    }
+    const res = await authenticatedApi(
+      `/api/compliments/${complimentId}/guess`,
+      authToken,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          guessed_profile_id: secondUserId,
+        }),
+      }
+    );
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(typeof data.correct).toBe("boolean");
+  });
+
+  test("Guess compliment - compliment not found (404)", async () => {
+    const res = await authenticatedApi(
+      "/api/compliments/00000000-0000-0000-0000-000000000000/guess",
+      authToken,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          guessed_profile_id: secondUserId,
+        }),
+      }
+    );
+    await expectStatus(res, 404);
+  });
+
+  test("Reveal compliment sender", async () => {
+    if (!complimentId) {
+      return; // Skip if no compliment was created
+    }
+    const res = await authenticatedApi(
+      `/api/compliments/${complimentId}/reveal`,
+      authToken,
+      {
+        method: "POST",
+      }
+    );
+    // 200 for success, 402 for insufficient credits
+    await expectStatus(res, 200, 402);
+    if (res.status === 200) {
+      const data = await res.json();
+      expect(data.sender).toBeDefined();
+      if (data.sender) {
+        expect(data.sender.id).toBeDefined();
+        expect(data.sender.username).toBeDefined();
+      }
+    }
+  });
+
+  test("Reveal compliment - compliment not found (404)", async () => {
+    const res = await authenticatedApi(
+      "/api/compliments/00000000-0000-0000-0000-000000000000/reveal",
+      authToken,
+      {
+        method: "POST",
+      }
+    );
+    await expectStatus(res, 404);
+  });
+
+  test("Share compliment", async () => {
+    if (!complimentId) {
+      return; // Skip if no compliment was created
+    }
+    const res = await authenticatedApi(
+      `/api/compliments/${complimentId}/share`,
+      authToken,
+      {
+        method: "POST",
+      }
+    );
+    await expectStatus(res, 201);
+    const data = await res.json();
+    expect(data.invite_id).toBeDefined();
+    expect(data.share_url).toBeDefined();
+  });
+
+  test("Share compliment - compliment not found (404)", async () => {
+    const res = await authenticatedApi(
+      "/api/compliments/00000000-0000-0000-0000-000000000000/share",
+      authToken,
+      {
+        method: "POST",
+      }
+    );
+    await expectStatus(res, 404);
+  });
+
+  // Credits Tests
+  test("Get credits balance and transaction history", async () => {
+    const res = await authenticatedApi("/api/credits", authToken);
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(typeof data.balance).toBe("number");
+    expect(data.transactions).toBeDefined();
+    expect(Array.isArray(data.transactions)).toBe(true);
+  });
+
+  test("Purchase credit pack - pack_10", async () => {
+    const res = await authenticatedApi("/api/credits/purchase", authToken, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        pack: "pack_10",
+      }),
+    });
+    await expectStatus(res, 201);
+    const data = await res.json();
+    expect(typeof data.new_balance).toBe("number");
+    expect(typeof data.credits_added).toBe("number");
+  });
+
+  test("Purchase credit pack - pack_50", async () => {
+    const res = await authenticatedApi("/api/credits/purchase", authToken, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        pack: "pack_50",
+      }),
+    });
+    await expectStatus(res, 201);
+  });
+
+  test("Purchase credit pack - pack_150", async () => {
+    const res = await authenticatedApi("/api/credits/purchase", authToken, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        pack: "pack_150",
+      }),
+    });
+    await expectStatus(res, 201);
+  });
+
+  test("Purchase credit pack - invalid pack (validation error)", async () => {
+    const res = await authenticatedApi("/api/credits/purchase", authToken, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        pack: "invalid_pack",
+      }),
+    });
+    await expectStatus(res, 400);
+  });
+
+  // Reports Tests
+  test("Report compliment", async () => {
+    if (!complimentId) {
+      return; // Skip if no compliment was created
+    }
+    const res = await authenticatedApi("/api/reports", authToken, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        compliment_id: complimentId,
+        reason: "Inappropriate or offensive content",
+      }),
+    });
+    await expectStatus(res, 201);
+    const data = await res.json();
+    expect(data.success).toBe(true);
+  });
+
+  test("Report compliment - compliment not found (404)", async () => {
+    const res = await authenticatedApi("/api/reports", authToken, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        compliment_id: "00000000-0000-0000-0000-000000000000",
+        reason: "Test reason",
+      }),
+    });
+    await expectStatus(res, 404);
+  });
+
+  // Blocks Tests
+  test("Block a user", async () => {
+    const res = await authenticatedApi("/api/blocks", authToken, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        blocked_id: secondUserId,
+      }),
+    });
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(data.success).toBe(true);
+  });
+
+  // Invites Tests
+  test("Track invite link click", async () => {
+    const res = await api("/api/invite/00000000-0000-0000-0000-000000000000/track", {
+      method: "POST",
+    });
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(data.success).toBe(true);
+  });
+
+  // Suggested Compliments Tests
+  test("Get suggested compliments for Personnalité category", async () => {
+    const res = await api("/api/suggested-compliments?category=Personnalité");
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(data.suggestions).toBeDefined();
+    expect(Array.isArray(data.suggestions)).toBe(true);
+  });
+
+  test("Get suggested compliments for Look category", async () => {
+    const res = await api("/api/suggested-compliments?category=Look");
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(Array.isArray(data.suggestions)).toBe(true);
+  });
+
+  test("Get suggested compliments for Talent category", async () => {
+    const res = await api("/api/suggested-compliments?category=Talent");
+    await expectStatus(res, 200);
+  });
+
+  test("Get suggested compliments for Humour category", async () => {
+    const res = await api("/api/suggested-compliments?category=Humour");
+    await expectStatus(res, 200);
+  });
+
+  test("Get suggested compliments for Autre category", async () => {
+    const res = await api("/api/suggested-compliments?category=Autre");
+    await expectStatus(res, 200);
+  });
+
+  test("Get suggested compliments - invalid category (validation error)", async () => {
+    const res = await api("/api/suggested-compliments?category=InvalidCategory");
+    await expectStatus(res, 400);
+  });
+
+  // Unauthorized Access Tests
+  test("Get profile without authentication (401)", async () => {
+    const res = await api("/api/profiles/me");
+    await expectStatus(res, 401);
+  });
+
+  test("Update profile without authentication (401)", async () => {
+    const res = await api("/api/profiles/me", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: "hacker",
+        avatar_emoji: "😈",
+      }),
+    });
+    await expectStatus(res, 401);
+  });
+
+  test("Setup profile without authentication (401)", async () => {
+    const res = await api("/api/profiles/setup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: "hacker",
+        avatar_emoji: "😈",
+      }),
+    });
+    await expectStatus(res, 401);
+  });
+
+  test("Send compliment without authentication (401)", async () => {
+    const res = await api("/api/compliments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        recipient_id: userId,
+        text: "You are amazing!",
+        category: "Humour",
+      }),
+    });
+    await expectStatus(res, 401);
+  });
+
+  test("Get compliments without authentication (401)", async () => {
+    const res = await api("/api/compliments");
+    await expectStatus(res, 401);
+  });
+
+  test("Match contacts without authentication (401)", async () => {
+    const res = await api("/api/contacts/match", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        phone_hashes: ["hash1"],
+      }),
+    });
+    await expectStatus(res, 401);
+  });
+
+  test("Get credits without authentication (401)", async () => {
+    const res = await api("/api/credits");
+    await expectStatus(res, 401);
+  });
+
+  test("Purchase credits without authentication (401)", async () => {
+    const res = await api("/api/credits/purchase", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        pack: "pack_10",
+      }),
+    });
+    await expectStatus(res, 401);
+  });
+
+  test("Report compliment without authentication (401)", async () => {
+    const res = await api("/api/reports", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        compliment_id: "00000000-0000-0000-0000-000000000000",
+        reason: "Test",
+      }),
+    });
+    await expectStatus(res, 401);
+  });
+
+  test("Block user without authentication (401)", async () => {
+    const res = await api("/api/blocks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        blocked_id: "some-user-id",
+      }),
+    });
+    await expectStatus(res, 401);
+  });
 });

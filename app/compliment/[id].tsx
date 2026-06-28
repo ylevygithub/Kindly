@@ -14,7 +14,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { COLORS } from "@/constants/Colors";
-import { apiGet, apiPost } from "@/utils/api";
+import { authenticatedGet, authenticatedPost } from "@/utils/api";
 import { AnimatedPressable } from "@/components/AnimatedPressable";
 import ConfettiAnimation, { ConfettiRef } from "@/components/ConfettiAnimation";
 
@@ -88,8 +88,8 @@ export default function ComplimentDetailScreen() {
     console.log("[ComplimentDetail] Loading compliment:", id);
     try {
       const [detail, suggestions] = await Promise.all([
-        apiGet<ComplimentDetail>(`/api/compliments/${id}`),
-        apiGet<GuessSuggestion[]>(`/api/compliments/${id}/guess-suggestions`),
+        authenticatedGet<ComplimentDetail>(`/api/compliments/${id}`),
+        authenticatedGet<GuessSuggestion[]>(`/api/compliments/${id}/guess-suggestions`),
       ]);
       setCompliment(detail);
       setGuessSuggestions(suggestions);
@@ -105,7 +105,7 @@ export default function ComplimentDetailScreen() {
     console.log("[ComplimentDetail] Guess pressed for user:", userId);
     setSelectedGuess(userId);
     try {
-      const result = await apiPost<{ correct: boolean }>(`/api/compliments/${id}/guess`, {
+      const result = await authenticatedPost<{ correct: boolean }>(`/api/compliments/${id}/guess`, {
         guessed_user_id: userId,
       });
       setGuessResult(result.correct ? "correct" : "incorrect");
@@ -120,7 +120,7 @@ export default function ComplimentDetailScreen() {
     console.log("[ComplimentDetail] Reveal button pressed for compliment:", id);
     setRevealing(true);
     try {
-      const result = await apiPost<ComplimentDetail>(`/api/compliments/${id}/reveal`, {});
+      const result = await authenticatedPost<ComplimentDetail>(`/api/compliments/${id}/reveal`, {});
       // Flip animation
       Animated.sequence([
         Animated.timing(flipAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
@@ -154,7 +154,7 @@ export default function ComplimentDetailScreen() {
     console.log("[ComplimentDetail] Share button pressed for compliment:", id);
     setSharing(true);
     try {
-      await apiPost(`/api/compliments/${id}/share`, {});
+      await authenticatedPost(`/api/compliments/${id}/share`, {});
       await Share.share({
         message: `J'ai reçu un compliment sur Kindly 💛 : "${compliment?.text}" — Rejoins-moi sur Kindly !`,
         url: `https://kindly.app/c/${id}`,

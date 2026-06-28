@@ -15,7 +15,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { COLORS } from "@/constants/Colors";
-import { apiGet, apiPost } from "@/utils/api";
+import { authenticatedGet, authenticatedPost } from "@/utils/api";
 import { AnimatedPressable } from "@/components/AnimatedPressable";
 import ConfettiAnimation, { ConfettiRef } from "@/components/ConfettiAnimation";
 
@@ -68,7 +68,7 @@ export default function SendScreen() {
     console.log("[Send] Loading contacts from API");
     setContactsLoading(true);
     try {
-      const data = await apiGet<Contact[]>("/api/contacts/list");
+      const data = await authenticatedGet<Contact[]>("/api/contacts/list");
       setContacts(data);
       console.log("[Send] Contacts loaded:", data.length);
     } catch (err) {
@@ -81,7 +81,7 @@ export default function SendScreen() {
 
   const loadDailyCount = async () => {
     try {
-      const data = await apiGet<{ count: number }>("/api/compliments/daily-count");
+      const data = await authenticatedGet<{ count: number }>("/api/compliments/daily-count");
       setDailyCount(data.count || 0);
     } catch {
       setDailyCount(0);
@@ -92,7 +92,7 @@ export default function SendScreen() {
     console.log("[Send] Loading suggestions for category:", category);
     setSuggestionsLoading(true);
     try {
-      const data = await apiGet<SuggestedCompliment[]>(
+      const data = await authenticatedGet<SuggestedCompliment[]>(
         `/api/suggested-compliments?category=${encodeURIComponent(category)}`
       );
       setSuggestions(data);
@@ -130,7 +130,7 @@ export default function SendScreen() {
     console.log("[Send] Sending compliment to:", selectedContact.username, "category:", selectedCategory);
     setSending(true);
     try {
-      await apiPost("/api/compliments", {
+      await authenticatedPost("/api/compliments", {
         recipient_id: selectedContact.id,
         text: text.trim(),
         category: selectedCategory,

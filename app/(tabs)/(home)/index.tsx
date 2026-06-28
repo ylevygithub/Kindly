@@ -13,7 +13,7 @@ import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { COLORS } from "@/constants/Colors";
-import { apiGet } from "@/utils/api";
+import { authenticatedGet } from "@/utils/api";
 import { useAuth } from "@/contexts/AuthContext";
 import ConfettiAnimation, { ConfettiRef } from "@/components/ConfettiAnimation";
 import { AnimatedPressable } from "@/components/AnimatedPressable";
@@ -171,7 +171,7 @@ export default function HomeScreen() {
   const fetchCompliments = useCallback(async (isRefresh = false) => {
     console.log("[Home] Fetching compliments, isRefresh:", isRefresh);
     try {
-      const data = await apiGet<Compliment[]>("/api/compliments");
+      const data = await authenticatedGet<Compliment[]>("/api/compliments");
       const newCount = data.length;
       if (isRefresh && newCount > prevCountRef.current && prevCountRef.current > 0) {
         console.log("[Home] New compliments received! Triggering confetti");

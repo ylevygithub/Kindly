@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { eq, and, ne } from 'drizzle-orm';
+import { eq, and, ne, sql } from 'drizzle-orm';
 import * as schema from '../db/schema/schema.js';
 import type { App } from '../index.js';
 
@@ -302,25 +302,20 @@ export function register(app: App, fastify: FastifyInstance) {
     return reply.status(201).send(profile);
   });
 
-  // GET /api/contacts/list - List all contacts except current user and blocked users
+  // GET /api/contacts/list - List all contacts except current user
   fastify.get('/api/contacts/list', {
     schema: {
-      description: 'List all available contacts (excluding current user and blocked users)',
+      description: 'List all available contacts (excluding current user)',
       tags: ['profiles'],
       response: {
         200: {
-          type: 'object',
-          properties: {
-            contacts: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  id: { type: 'string' },
-                  username: { type: 'string' },
-                  avatar_emoji: { type: 'string' },
-                },
-              },
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              username: { type: 'string' },
+              avatar_emoji: { type: 'string' },
             },
           },
         },
@@ -333,38 +328,26 @@ export function register(app: App, fastify: FastifyInstance) {
 
     app.logger.info({ userId: session.user.id }, 'Listing contacts');
 
-    // Get list of blocked user IDs
-    const blocked = await app.db.query.blocks.findMany({
-      where: eq(schema.blocks.blocker_id, session.user.id),
-      columns: { blocked_id: true },
-    });
-    const blockedIds = new Set(blocked.map(b => b.blocked_id));
-
     // Get all profiles except current user
-    const allProfiles = await app.db.query.profiles.findMany({
+    const contacts = await app.db.query.profiles.findMany({
       where: ne(schema.profiles.id, session.user.id),
       columns: { id: true, username: true, avatar_emoji: true },
     });
 
-    // Filter out blocked users
-    const contacts = allProfiles.filter(p => !blockedIds.has(p.id));
-
     app.logger.info({ userId: session.user.id, contactCount: contacts.length }, 'Contacts listed');
-    return { contacts };
+    return contacts;
   });
 
-  // GET /api/compliments/daily-count - Get current daily send count and limit
+  // GET /api/compliments/daily-count - Count compliments sent today
   fastify.get('/api/compliments/daily-count', {
     schema: {
-      description: 'Get current daily compliment send count and limit',
+      description: 'Count compliments sent by current user today (UTC)',
       tags: ['compliments'],
       response: {
         200: {
           type: 'object',
           properties: {
             count: { type: 'number' },
-            limit: { type: 'number' },
-            is_premium: { type: 'boolean' },
           },
         },
         401: { type: 'object', properties: { error: { type: 'string' } } },
@@ -374,32 +357,26 @@ export function register(app: App, fastify: FastifyInstance) {
     const session = await requireAuth(request, reply);
     if (!session) return;
 
-    app.logger.info({ userId: session.user.id }, 'Getting daily count');
+    app.logger.info({ userId: session.user.id }, 'Getting daily compliments count');
 
-    const profile = await app.db.query.profiles.findFirst({
-      where: eq(schema.profiles.id, session.user.id),
-      columns: {
-        daily_sends_count: true,
-        daily_sends_reset_date: true,
-        is_premium: true,
-      },
+    // Get today's date boundaries in UTC
+    const today = new Date().toISOString().slice(0, 10);
+    const todayStart = new Date(`${today}T00:00:00Z`);
+    const todayEnd = new Date(`${today}T23:59:59.999Z`);
+
+    // Count compliments sent by current user today
+    const complimentsToday = await app.db.query.compliments.findMany({
+      where: and(
+        eq(schema.compliments.sender_id, session.user.id),
+        sql`${schema.compliments.created_at}::date = ${today}`
+      ),
+      columns: { id: true },
     });
 
-    if (!profile) {
-      return reply.status(404).send({ error: 'Profile not found' });
-    }
+    const count = complimentsToday.length;
 
-    // Get today's date in UTC
-    const today = new Date().toISOString().slice(0, 10);
-
-    // Determine count: reset if day has changed
-    const count = profile.daily_sends_reset_date === today ? profile.daily_sends_count : 0;
-
-    // Determine limit based on premium status
-    const limit = profile.is_premium ? 999 : 3;
-
-    app.logger.info({ userId: session.user.id, count, limit, is_premium: profile.is_premium }, 'Daily count retrieved');
-    return { count, limit, is_premium: profile.is_premium };
+    app.logger.info({ userId: session.user.id, count }, 'Daily compliments count retrieved');
+    return { count };
   });
 
   // GET /api/compliments - Get received compliments

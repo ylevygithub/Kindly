@@ -231,6 +231,16 @@ describe("API Integration Tests", () => {
     await expectStatus(res, 400);
   });
 
+  // Daily Compliment Count Tests
+  test("Get daily compliment send count and limit", async () => {
+    const res = await authenticatedApi("/api/compliments/daily-count", authToken);
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(typeof data.count).toBe("number");
+    expect(typeof data.limit).toBe("number");
+    expect(typeof data.is_premium).toBe("boolean");
+  });
+
   // Compliment Detail Tests (only run if complimentId exists)
   test("Get guess suggestions for compliment", async () => {
     if (!complimentId) {
@@ -630,6 +640,11 @@ describe("API Integration Tests", () => {
 
   test("Get compliments without authentication (401)", async () => {
     const res = await api("/api/compliments");
+    await expectStatus(res, 401);
+  });
+
+  test("Get daily compliment count without authentication (401)", async () => {
+    const res = await api("/api/compliments/daily-count");
     await expectStatus(res, 401);
   });
 

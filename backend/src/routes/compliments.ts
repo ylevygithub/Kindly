@@ -353,6 +353,55 @@ export function register(app: App, fastify: FastifyInstance) {
     return { contacts };
   });
 
+  // GET /api/compliments/daily-count - Get current daily send count and limit
+  fastify.get('/api/compliments/daily-count', {
+    schema: {
+      description: 'Get current daily compliment send count and limit',
+      tags: ['compliments'],
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            count: { type: 'number' },
+            limit: { type: 'number' },
+            is_premium: { type: 'boolean' },
+          },
+        },
+        401: { type: 'object', properties: { error: { type: 'string' } } },
+      },
+    },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const session = await requireAuth(request, reply);
+    if (!session) return;
+
+    app.logger.info({ userId: session.user.id }, 'Getting daily count');
+
+    const profile = await app.db.query.profiles.findFirst({
+      where: eq(schema.profiles.id, session.user.id),
+      columns: {
+        daily_sends_count: true,
+        daily_sends_reset_date: true,
+        is_premium: true,
+      },
+    });
+
+    if (!profile) {
+      return reply.status(404).send({ error: 'Profile not found' });
+    }
+
+    // Get today's date in UTC
+    const today = new Date().toISOString().slice(0, 10);
+
+    // Determine count: reset if day has changed
+    const count = profile.daily_sends_reset_date === today ? profile.daily_sends_count : 0;
+
+    // Determine limit based on premium status
+    const limit = profile.is_premium ? 999 : 3;
+
+    app.logger.info({ userId: session.user.id, count, limit, is_premium: profile.is_premium }, 'Daily count retrieved');
+    return { count, limit, is_premium: profile.is_premium };
+  });
+
   // GET /api/compliments - Get received compliments
   fastify.get('/api/compliments', {
     schema: {

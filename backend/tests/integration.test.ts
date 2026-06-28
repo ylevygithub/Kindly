@@ -19,11 +19,12 @@ describe("API Integration Tests", () => {
 
   // Profile Tests
   test("Setup user profile", async () => {
+    const uniqueUsername = `tu${Date.now()}${Math.random().toString(36).slice(2, 5)}`;
     const res = await authenticatedApi("/api/profiles/setup", authToken, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        username: "testuser123",
+        username: uniqueUsername,
         avatar_emoji: "😀",
       }),
     });
@@ -43,17 +44,18 @@ describe("API Integration Tests", () => {
   });
 
   test("Update profile with valid data", async () => {
+    const updatedUsername = `up${Date.now()}${Math.random().toString(36).slice(2, 5)}`;
     const res = await authenticatedApi("/api/profiles/me", authToken, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        username: "updateduser456",
+        username: updatedUsername,
         avatar_emoji: "😎",
       }),
     });
     await expectStatus(res, 200);
     const data = await res.json();
-    expect(data.username).toBe("updateduser456");
+    expect(data.username).toBe(updatedUsername);
     expect(data.avatar_emoji).toBe("😎");
   });
 
@@ -113,43 +115,37 @@ describe("API Integration Tests", () => {
   });
 
   test("Setup second user profile", async () => {
+    const uniqueUsername = `su${Date.now()}${Math.random().toString(36).slice(2, 5)}`;
     const res = await authenticatedApi("/api/profiles/setup", secondUserToken, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        username: "seconduser789",
+        username: uniqueUsername,
         avatar_emoji: "🎉",
       }),
     });
     await expectStatus(res, 200, 201);
   });
 
-  // Contact Matching Tests
-  test("Match contacts by phone hashes", async () => {
-    const res = await authenticatedApi("/api/contacts/match", authToken, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        phone_hashes: ["hash_abc123", "hash_def456"],
-      }),
-    });
+  // Contact Listing Tests
+  test("List all available contacts", async () => {
+    const res = await authenticatedApi("/api/contacts/list", authToken);
     await expectStatus(res, 200);
     const data = await res.json();
-    expect(data.matches).toBeDefined();
-    expect(Array.isArray(data.matches)).toBe(true);
+    expect(data.contacts).toBeDefined();
+    expect(Array.isArray(data.contacts)).toBe(true);
   });
 
-  test("Match contacts - empty phone hashes", async () => {
-    const res = await authenticatedApi("/api/contacts/match", authToken, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        phone_hashes: [],
-      }),
-    });
+  test("List contacts - returns objects with required fields", async () => {
+    const res = await authenticatedApi("/api/contacts/list", authToken);
     await expectStatus(res, 200);
     const data = await res.json();
-    expect(Array.isArray(data.matches)).toBe(true);
+    if (data.contacts.length > 0) {
+      const contact = data.contacts[0];
+      expect(contact.id).toBeDefined();
+      expect(contact.username).toBeDefined();
+      expect(contact.avatar_emoji).toBeDefined();
+    }
   });
 
   // Compliments Tests
@@ -258,6 +254,14 @@ describe("API Integration Tests", () => {
     await expectStatus(res, 404);
   });
 
+  test("Get guess suggestions - invalid UUID format (400)", async () => {
+    const res = await authenticatedApi(
+      "/api/compliments/invalid-uuid/guess-suggestions",
+      authToken
+    );
+    await expectStatus(res, 400);
+  });
+
   test("Guess compliment sender", async () => {
     if (!complimentId) {
       return; // Skip if no compliment was created
@@ -291,6 +295,21 @@ describe("API Integration Tests", () => {
       }
     );
     await expectStatus(res, 404);
+  });
+
+  test("Guess compliment - invalid UUID format (400)", async () => {
+    const res = await authenticatedApi(
+      "/api/compliments/invalid-uuid/guess",
+      authToken,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          guessed_profile_id: secondUserId,
+        }),
+      }
+    );
+    await expectStatus(res, 400);
   });
 
   test("Reveal compliment sender", async () => {
@@ -327,6 +346,17 @@ describe("API Integration Tests", () => {
     await expectStatus(res, 404);
   });
 
+  test("Reveal compliment - invalid UUID format (400)", async () => {
+    const res = await authenticatedApi(
+      "/api/compliments/invalid-uuid/reveal",
+      authToken,
+      {
+        method: "POST",
+      }
+    );
+    await expectStatus(res, 400);
+  });
+
   test("Share compliment", async () => {
     if (!complimentId) {
       return; // Skip if no compliment was created
@@ -353,6 +383,17 @@ describe("API Integration Tests", () => {
       }
     );
     await expectStatus(res, 404);
+  });
+
+  test("Share compliment - invalid UUID format (400)", async () => {
+    const res = await authenticatedApi(
+      "/api/compliments/invalid-uuid/share",
+      authToken,
+      {
+        method: "POST",
+      }
+    );
+    await expectStatus(res, 400);
   });
 
   // Credits Tests
@@ -412,6 +453,15 @@ describe("API Integration Tests", () => {
     await expectStatus(res, 400);
   });
 
+  test("Purchase credit pack - missing pack field (validation error)", async () => {
+    const res = await authenticatedApi("/api/credits/purchase", authToken, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    await expectStatus(res, 400);
+  });
+
   // Reports Tests
   test("Report compliment", async () => {
     if (!complimentId) {
@@ -442,6 +492,18 @@ describe("API Integration Tests", () => {
     await expectStatus(res, 404);
   });
 
+  test("Report compliment - missing required fields (validation error)", async () => {
+    const res = await authenticatedApi("/api/reports", authToken, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        compliment_id: "00000000-0000-0000-0000-000000000000",
+        // missing reason
+      }),
+    });
+    await expectStatus(res, 400);
+  });
+
   // Blocks Tests
   test("Block a user", async () => {
     const res = await authenticatedApi("/api/blocks", authToken, {
@@ -456,6 +518,15 @@ describe("API Integration Tests", () => {
     expect(data.success).toBe(true);
   });
 
+  test("Block user - missing required field (validation error)", async () => {
+    const res = await authenticatedApi("/api/blocks", authToken, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    await expectStatus(res, 400);
+  });
+
   // Invites Tests
   test("Track invite link click", async () => {
     const res = await api("/api/invite/00000000-0000-0000-0000-000000000000/track", {
@@ -464,6 +535,13 @@ describe("API Integration Tests", () => {
     await expectStatus(res, 200);
     const data = await res.json();
     expect(data.success).toBe(true);
+  });
+
+  test("Track invite link click - invalid UUID format (400)", async () => {
+    const res = await api("/api/invite/invalid-uuid/track", {
+      method: "POST",
+    });
+    await expectStatus(res, 400);
   });
 
   // Suggested Compliments Tests
@@ -499,6 +577,11 @@ describe("API Integration Tests", () => {
 
   test("Get suggested compliments - invalid category (validation error)", async () => {
     const res = await api("/api/suggested-compliments?category=InvalidCategory");
+    await expectStatus(res, 400);
+  });
+
+  test("Get suggested compliments - missing category parameter (validation error)", async () => {
+    const res = await api("/api/suggested-compliments");
     await expectStatus(res, 400);
   });
 
@@ -550,14 +633,8 @@ describe("API Integration Tests", () => {
     await expectStatus(res, 401);
   });
 
-  test("Match contacts without authentication (401)", async () => {
-    const res = await api("/api/contacts/match", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        phone_hashes: ["hash1"],
-      }),
-    });
+  test("List contacts without authentication (401)", async () => {
+    const res = await api("/api/contacts/list");
     await expectStatus(res, 401);
   });
 
@@ -597,6 +674,47 @@ describe("API Integration Tests", () => {
         blocked_id: "some-user-id",
       }),
     });
+    await expectStatus(res, 401);
+  });
+
+  test("Guess compliment without authentication (401)", async () => {
+    const res = await api(
+      "/api/compliments/00000000-0000-0000-0000-000000000000/guess",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          guessed_profile_id: "some-user-id",
+        }),
+      }
+    );
+    await expectStatus(res, 401);
+  });
+
+  test("Reveal compliment without authentication (401)", async () => {
+    const res = await api(
+      "/api/compliments/00000000-0000-0000-0000-000000000000/reveal",
+      {
+        method: "POST",
+      }
+    );
+    await expectStatus(res, 401);
+  });
+
+  test("Get guess suggestions without authentication (401)", async () => {
+    const res = await api(
+      "/api/compliments/00000000-0000-0000-0000-000000000000/guess-suggestions"
+    );
+    await expectStatus(res, 401);
+  });
+
+  test("Share compliment without authentication (401)", async () => {
+    const res = await api(
+      "/api/compliments/00000000-0000-0000-0000-000000000000/share",
+      {
+        method: "POST",
+      }
+    );
     await expectStatus(res, 401);
   });
 });

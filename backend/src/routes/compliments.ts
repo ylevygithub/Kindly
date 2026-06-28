@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { eq, and, ne, inArray } from 'drizzle-orm';
+import { eq, and, ne } from 'drizzle-orm';
 import * as schema from '../db/schema/schema.js';
 import type { App } from '../index.js';
 
@@ -302,23 +302,16 @@ export function register(app: App, fastify: FastifyInstance) {
     return reply.status(201).send(profile);
   });
 
-  // POST /api/contacts/match - Match phone hashes
-  fastify.post('/api/contacts/match', {
+  // GET /api/contacts/list - List all contacts except current user and blocked users
+  fastify.get('/api/contacts/list', {
     schema: {
-      description: 'Find matching profiles by phone hashes',
+      description: 'List all available contacts (excluding current user and blocked users)',
       tags: ['profiles'],
-      body: {
-        type: 'object',
-        required: ['phone_hashes'],
-        properties: {
-          phone_hashes: { type: 'array', items: { type: 'string' } },
-        },
-      },
       response: {
         200: {
           type: 'object',
           properties: {
-            matches: {
+            contacts: {
               type: 'array',
               items: {
                 type: 'object',
@@ -334,22 +327,30 @@ export function register(app: App, fastify: FastifyInstance) {
         401: { type: 'object', properties: { error: { type: 'string' } } },
       },
     },
-  }, async (request: FastifyRequest<{ Body: { phone_hashes: string[] } }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const session = await requireAuth(request, reply);
     if (!session) return;
 
-    app.logger.info({ userId: session.user.id, hashCount: request.body.phone_hashes.length }, 'Matching contacts');
+    app.logger.info({ userId: session.user.id }, 'Listing contacts');
 
-    const matches = await app.db.query.profiles.findMany({
-      where: and(
-        inArray(schema.profiles.phone_hash, request.body.phone_hashes),
-        ne(schema.profiles.id, session.user.id)
-      ),
+    // Get list of blocked user IDs
+    const blocked = await app.db.query.blocks.findMany({
+      where: eq(schema.blocks.blocker_id, session.user.id),
+      columns: { blocked_id: true },
+    });
+    const blockedIds = new Set(blocked.map(b => b.blocked_id));
+
+    // Get all profiles except current user
+    const allProfiles = await app.db.query.profiles.findMany({
+      where: ne(schema.profiles.id, session.user.id),
       columns: { id: true, username: true, avatar_emoji: true },
     });
 
-    app.logger.info({ userId: session.user.id, matchCount: matches.length }, 'Contacts matched');
-    return { matches };
+    // Filter out blocked users
+    const contacts = allProfiles.filter(p => !blockedIds.has(p.id));
+
+    app.logger.info({ userId: session.user.id, contactCount: contacts.length }, 'Contacts listed');
+    return { contacts };
   });
 
   // GET /api/compliments - Get received compliments
@@ -511,8 +512,9 @@ export function register(app: App, fastify: FastifyInstance) {
       sender_id: session.user.id,
       recipient_id,
       text,
-      category: category as any,
+      category: category as 'Personnalité' | 'Look' | 'Talent' | 'Humour' | 'Autre',
       is_revealed: false,
+      reveal_guess_id: null,
     }).returning();
 
     await app.db.update(schema.profiles)
@@ -1020,7 +1022,7 @@ export function register(app: App, fastify: FastifyInstance) {
     await app.db.insert(schema.blocks).values({
       blocker_id: session.user.id,
       blocked_id: request.body.blocked_id,
-    });
+    }).returning();
 
     app.logger.info({ userId: session.user.id, blockedId: request.body.blocked_id }, 'User blocked');
     return { success: true };

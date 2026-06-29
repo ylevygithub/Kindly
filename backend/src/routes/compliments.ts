@@ -481,7 +481,9 @@ export function register(app: App, fastify: FastifyInstance) {
             recipient_id: { type: 'string' },
             text: { type: 'string' },
             category: { type: 'string' },
-            created_at: { type: 'string' },
+            created_at: { type: 'string', format: 'date-time' },
+            is_revealed: { type: 'boolean' },
+            sender: { type: 'object', nullable: true },
           },
         },
         400: { type: 'object', properties: { error: { type: 'string' }, code: { type: 'string' } } },
@@ -554,7 +556,78 @@ export function register(app: App, fastify: FastifyInstance) {
       .where(eq(schema.profiles.id, session.user.id));
 
     app.logger.info({ userId: session.user.id, complimentId: compliment.id }, 'Compliment sent');
-    return reply.status(201).send(compliment);
+    return reply.status(201).send({
+      id: compliment.id,
+      recipient_id: compliment.recipient_id,
+      text: compliment.text,
+      category: compliment.category,
+      created_at: compliment.created_at,
+      is_revealed: compliment.is_revealed,
+      sender: null,
+    });
+  });
+
+  // GET /api/compliments/:id - Get single compliment by ID
+  fastify.get('/api/compliments/:id', {
+    schema: {
+      description: 'Get a single compliment by ID',
+      tags: ['compliments'],
+      params: {
+        type: 'object',
+        required: ['id'],
+        properties: {
+          id: { type: 'string', format: 'uuid' },
+        },
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            text: { type: 'string' },
+            category: { type: 'string' },
+            created_at: { type: 'string', format: 'date-time' },
+            is_revealed: { type: 'boolean' },
+            sender: { type: 'object', nullable: true },
+          },
+        },
+        404: { type: 'object', properties: { error: { type: 'string' } } },
+        401: { type: 'object', properties: { error: { type: 'string' } } },
+      },
+    },
+  }, async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    const session = await requireAuth(request, reply);
+    if (!session) return;
+
+    app.logger.info({ userId: session.user.id, complimentId: request.params.id }, 'Fetching compliment');
+
+    const compliment = await app.db.query.compliments.findFirst({
+      where: eq(schema.compliments.id, request.params.id),
+    });
+
+    if (!compliment || compliment.recipient_id !== session.user.id) {
+      return reply.status(404).send({ error: 'Compliment not found' });
+    }
+
+    const result: any = {
+      id: compliment.id,
+      text: compliment.text,
+      category: compliment.category,
+      created_at: compliment.created_at,
+      is_revealed: compliment.is_revealed,
+      sender: null,
+    };
+
+    if (compliment.is_revealed) {
+      const sender = await app.db.query.profiles.findFirst({
+        where: eq(schema.profiles.id, compliment.sender_id),
+        columns: { id: true, username: true, avatar_emoji: true },
+      });
+      result.sender = sender;
+    }
+
+    app.logger.info({ userId: session.user.id, complimentId: compliment.id }, 'Compliment retrieved');
+    return result;
   });
 
   // POST /api/compliments/:id/reveal - Reveal compliment sender
@@ -573,6 +646,11 @@ export function register(app: App, fastify: FastifyInstance) {
         200: {
           type: 'object',
           properties: {
+            id: { type: 'string' },
+            text: { type: 'string' },
+            category: { type: 'string' },
+            created_at: { type: 'string', format: 'date-time' },
+            is_revealed: { type: 'boolean' },
             sender: {
               type: 'object',
               properties: {
@@ -608,7 +686,14 @@ export function register(app: App, fastify: FastifyInstance) {
         columns: { id: true, username: true, avatar_emoji: true },
       });
       app.logger.info({ userId: session.user.id, complimentId: compliment.id }, 'Compliment already revealed');
-      return { sender };
+      return {
+        id: compliment.id,
+        text: compliment.text,
+        category: compliment.category,
+        created_at: compliment.created_at,
+        is_revealed: compliment.is_revealed,
+        sender,
+      };
     }
 
     const profile = await app.db.query.profiles.findFirst({
@@ -644,7 +729,14 @@ export function register(app: App, fastify: FastifyInstance) {
     });
 
     app.logger.info({ userId: session.user.id, complimentId: compliment.id }, 'Compliment revealed');
-    return { sender };
+    return {
+      id: compliment.id,
+      text: compliment.text,
+      category: compliment.category,
+      created_at: compliment.created_at,
+      is_revealed: true,
+      sender,
+    };
   });
 
   // POST /api/compliments/:id/guess - Guess compliment sender
@@ -661,9 +753,9 @@ export function register(app: App, fastify: FastifyInstance) {
       },
       body: {
         type: 'object',
-        required: ['guessed_profile_id'],
+        required: ['guessed_user_id'],
         properties: {
-          guessed_profile_id: { type: 'string' },
+          guessed_user_id: { type: 'string' },
         },
       },
       response: {
@@ -672,7 +764,7 @@ export function register(app: App, fastify: FastifyInstance) {
         401: { type: 'object', properties: { error: { type: 'string' } } },
       },
     },
-  }, async (request: FastifyRequest<{ Params: { id: string }; Body: { guessed_profile_id: string } }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest<{ Params: { id: string }; Body: { guessed_user_id: string } }>, reply: FastifyReply) => {
     const session = await requireAuth(request, reply);
     if (!session) return;
 
@@ -687,10 +779,10 @@ export function register(app: App, fastify: FastifyInstance) {
     }
 
     await app.db.update(schema.compliments)
-      .set({ reveal_guess_id: request.body.guessed_profile_id })
+      .set({ reveal_guess_id: request.body.guessed_user_id })
       .where(eq(schema.compliments.id, compliment.id));
 
-    const correct = compliment.sender_id === request.body.guessed_profile_id;
+    const correct = compliment.sender_id === request.body.guessed_user_id;
     app.logger.info({ userId: session.user.id, complimentId: compliment.id, correct }, 'Compliment guessed');
 
     return { correct };
@@ -749,56 +841,39 @@ export function register(app: App, fastify: FastifyInstance) {
     });
     const blockedIds = new Set(blocked.map(b => b.blocked_id));
 
-    const otherSenders = await app.db.query.compliments.findMany({
-      where: and(
-        eq(schema.compliments.recipient_id, session.user.id),
-        ne(schema.compliments.sender_id, compliment.sender_id),
-        ne(schema.compliments.sender_id, session.user.id)
-      ),
-      columns: { sender_id: true },
-    });
-
-    let suggestions: any[] = [];
-    const senderIds = new Set<string>();
-
-    for (const c of otherSenders.slice(0, 3)) {
-      if (!blockedIds.has(c.sender_id) && !senderIds.has(c.sender_id)) {
-        const profile = await app.db.query.profiles.findFirst({
-          where: eq(schema.profiles.id, c.sender_id),
-          columns: { id: true, username: true, avatar_emoji: true },
-        });
-        if (profile) {
-          suggestions.push(profile);
-          senderIds.add(c.sender_id);
-        }
-      }
-    }
-
-    while (suggestions.length < 3) {
-      const allProfiles = await app.db.query.profiles.findMany({
-        columns: { id: true, username: true, avatar_emoji: true },
-      });
-
-      const candidates = allProfiles.filter(p =>
-        p.id !== session.user.id &&
-        p.id !== compliment.sender_id &&
-        !blockedIds.has(p.id) &&
-        !senderIds.has(p.id)
-      );
-
-      if (candidates.length === 0) break;
-
-      const random = candidates[Math.floor(Math.random() * candidates.length)];
-      suggestions.push(random);
-      senderIds.add(random.id);
-    }
-
-    const actualSender = await app.db.query.profiles.findFirst({
-      where: eq(schema.profiles.id, compliment.sender_id),
+    // Get all profiles except current user and blocked users
+    const allProfiles = await app.db.query.profiles.findMany({
       columns: { id: true, username: true, avatar_emoji: true },
     });
 
-    suggestions.push(actualSender);
+    const candidates = allProfiles.filter(p =>
+      p.id !== session.user.id &&
+      !blockedIds.has(p.id)
+    );
+
+    let suggestions: any[] = [];
+    const senderIds = new Set<string>();
+    let actualSenderProfile: any = null;
+
+    // Get the actual sender profile
+    if (compliment.sender_id !== session.user.id) {
+      actualSenderProfile = candidates.find(p => p.id === compliment.sender_id);
+      if (actualSenderProfile) {
+        suggestions.push(actualSenderProfile);
+        senderIds.add(compliment.sender_id);
+      }
+    }
+
+    // Fill remaining spots with random candidates (up to 4 total)
+    const availableCandidates = candidates.filter(p => !senderIds.has(p.id));
+    while (suggestions.length < 4 && availableCandidates.length > 0) {
+      const idx = Math.floor(Math.random() * availableCandidates.length);
+      suggestions.push(availableCandidates[idx]);
+      senderIds.add(availableCandidates[idx].id);
+      availableCandidates.splice(idx, 1);
+    }
+
+    // Shuffle suggestions
     suggestions = suggestions.sort(() => Math.random() - 0.5);
 
     app.logger.info({ userId: session.user.id, suggestionCount: suggestions.length }, 'Guess suggestions generated');

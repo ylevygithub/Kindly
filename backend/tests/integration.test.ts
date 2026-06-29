@@ -242,6 +242,38 @@ describe("API Integration Tests", () => {
   });
 
   // Compliment Detail Tests (only run if complimentId exists)
+  test("Get compliment by ID", async () => {
+    if (!complimentId) {
+      return; // Skip if no compliment was created
+    }
+    const res = await authenticatedApi(
+      `/api/compliments/${complimentId}`,
+      authToken
+    );
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(data.id).toBe(complimentId);
+    expect(data.text).toBeDefined();
+    expect(data.category).toBeDefined();
+    expect(typeof data.is_revealed).toBe("boolean");
+  });
+
+  test("Get compliment - compliment not found (404)", async () => {
+    const res = await authenticatedApi(
+      "/api/compliments/00000000-0000-0000-0000-000000000000",
+      authToken
+    );
+    await expectStatus(res, 404);
+  });
+
+  test("Get compliment - invalid UUID format (400)", async () => {
+    const res = await authenticatedApi(
+      "/api/compliments/invalid-uuid",
+      authToken
+    );
+    await expectStatus(res, 400);
+  });
+
   test("Get guess suggestions for compliment", async () => {
     if (!complimentId) {
       return; // Skip if no compliment was created
@@ -283,7 +315,7 @@ describe("API Integration Tests", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          guessed_profile_id: secondUserId,
+          guessed_user_id: secondUserId,
         }),
       }
     );
@@ -300,7 +332,7 @@ describe("API Integration Tests", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          guessed_profile_id: secondUserId,
+          guessed_user_id: secondUserId,
         }),
       }
     );
@@ -315,7 +347,7 @@ describe("API Integration Tests", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          guessed_profile_id: secondUserId,
+          guessed_user_id: secondUserId,
         }),
       }
     );
@@ -704,7 +736,7 @@ describe("API Integration Tests", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          guessed_profile_id: "some-user-id",
+          guessed_user_id: "some-user-id",
         }),
       }
     );
@@ -734,6 +766,13 @@ describe("API Integration Tests", () => {
       {
         method: "POST",
       }
+    );
+    await expectStatus(res, 401);
+  });
+
+  test("Get compliment without authentication (401)", async () => {
+    const res = await api(
+      "/api/compliments/00000000-0000-0000-0000-000000000000"
     );
     await expectStatus(res, 401);
   });

@@ -437,6 +437,15 @@ export function register(app: App, fastify: FastifyInstance) {
                   is_revealed: { type: 'boolean' },
                   reveal_guess_id: { type: 'string', nullable: true },
                   created_at: { type: 'string', format: 'date-time' },
+                  sender: {
+                    type: 'object',
+                    nullable: true,
+                    properties: {
+                      id: { type: 'string' },
+                      username: { type: 'string' },
+                      avatar_emoji: { type: 'string' },
+                    },
+                  },
                 },
               },
             },
@@ -470,6 +479,15 @@ export function register(app: App, fastify: FastifyInstance) {
         continue;
       }
 
+      let sender = null;
+      if (c.is_revealed) {
+        const senderProfile = await app.db.query.profiles.findFirst({
+          where: eq(schema.profiles.id, c.sender_id),
+          columns: { id: true, username: true, avatar_emoji: true },
+        });
+        sender = senderProfile || null;
+      }
+
       result.push({
         id: c.id,
         sender_id: c.sender_id,
@@ -479,6 +497,7 @@ export function register(app: App, fastify: FastifyInstance) {
         is_revealed: c.is_revealed,
         reveal_guess_id: c.reveal_guess_id,
         created_at: c.created_at,
+        sender,
       });
     }
 

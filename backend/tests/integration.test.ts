@@ -85,6 +85,21 @@ describe("API Integration Tests", () => {
     await expectStatus(res, 400);
   });
 
+  test("Update profile with phone_hash", async () => {
+    const res = await authenticatedApi("/api/profiles/me", authToken, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: `up${Date.now()}`,
+        avatar_emoji: "🎯",
+        phone_hash: "test_phone_hash_123",
+      }),
+    });
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(data.id).toBeDefined();
+  });
+
   test("Setup profile - missing username (validation error)", async () => {
     const res = await authenticatedApi("/api/profiles/setup", authToken, {
       method: "POST",
@@ -105,6 +120,45 @@ describe("API Integration Tests", () => {
       }),
     });
     await expectStatus(res, 400);
+  });
+
+  test("Setup profile - username too short (validation error)", async () => {
+    const res = await authenticatedApi("/api/profiles/setup", authToken, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: "ab", // minLength: 3
+        avatar_emoji: "😀",
+      }),
+    });
+    await expectStatus(res, 400);
+  });
+
+  test("Setup profile - username too long (validation error)", async () => {
+    const res = await authenticatedApi("/api/profiles/setup", authToken, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: "a".repeat(21), // maxLength: 20
+        avatar_emoji: "😀",
+      }),
+    });
+    await expectStatus(res, 400);
+  });
+
+  test("Setup profile with phone_hash", async () => {
+    const res = await authenticatedApi("/api/profiles/setup", authToken, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: `setup${Date.now()}`,
+        avatar_emoji: "🚀",
+        phone_hash: "optional_phone_hash",
+      }),
+    });
+    await expectStatus(res, 200, 201);
+    const data = await res.json();
+    expect(data.id).toBeDefined();
   });
 
   // Setup: Sign up second test user for compliment tests
@@ -147,6 +201,9 @@ describe("API Integration Tests", () => {
       expect(contact.id).toBeDefined();
       expect(contact.username).toBeDefined();
       expect(contact.avatar_emoji).toBeDefined();
+      expect(typeof contact.credits).toBe("number");
+      expect(typeof contact.streak_days).toBe("number");
+      expect(typeof contact.is_premium).toBe("boolean");
     }
   });
 
@@ -178,6 +235,7 @@ describe("API Integration Tests", () => {
       expect(complimentId).toBeDefined();
       expect(data.recipient_id).toBe(userId);
       expect(data.category).toBe("Personnalité");
+      expect(data.is_revealed).toBeDefined();
     }
   });
 
@@ -233,6 +291,23 @@ describe("API Integration Tests", () => {
     await expectStatus(res, 400);
   });
 
+  test("Send compliment with all valid categories", async () => {
+    const categories = ["Personnalité", "Look", "Talent", "Humour", "Autre"];
+    for (const category of categories) {
+      const res = await authenticatedApi("/api/compliments", secondUserToken, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recipient_id: userId,
+          text: `Great ${category} compliment text here!`,
+          category: category,
+        }),
+      });
+      // Accept 201 (success), 400 (daily limit reached), or 402 (insufficient credits)
+      await expectStatus(res, 201, 400, 402);
+    }
+  });
+
   // Daily Compliment Count Tests
   test("Get daily compliment send count", async () => {
     const res = await authenticatedApi("/api/compliments/daily-count", authToken);
@@ -286,6 +361,11 @@ describe("API Integration Tests", () => {
     const data = await res.json();
     expect(data.suggestions).toBeDefined();
     expect(Array.isArray(data.suggestions)).toBe(true);
+    if (data.suggestions.length > 0) {
+      expect(data.suggestions[0].id).toBeDefined();
+      expect(data.suggestions[0].username).toBeDefined();
+      expect(data.suggestions[0].avatar_emoji).toBeDefined();
+    }
   });
 
   test("Get guess suggestions - compliment not found (404)", async () => {
@@ -389,6 +469,7 @@ describe("API Integration Tests", () => {
       if (data.sender) {
         expect(data.sender.id).toBeDefined();
         expect(data.sender.username).toBeDefined();
+        expect(data.sender.avatar_emoji).toBeDefined();
       }
     }
   });
@@ -462,6 +543,13 @@ describe("API Integration Tests", () => {
     expect(typeof data.balance).toBe("number");
     expect(data.transactions).toBeDefined();
     expect(Array.isArray(data.transactions)).toBe(true);
+    if (data.transactions.length > 0) {
+      const tx = data.transactions[0];
+      expect(tx.id).toBeDefined();
+      expect(typeof tx.amount).toBe("number");
+      expect(tx.reason).toBeDefined();
+      expect(tx.created_at).toBeDefined();
+    }
   });
 
   test("Purchase credit pack - pack_10", async () => {
@@ -548,6 +636,18 @@ describe("API Integration Tests", () => {
       }),
     });
     await expectStatus(res, 404);
+  });
+
+  test("Report compliment - invalid UUID format (400)", async () => {
+    const res = await authenticatedApi("/api/reports", authToken, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        compliment_id: "invalid-uuid",
+        reason: "Test reason",
+      }),
+    });
+    await expectStatus(res, 400);
   });
 
   test("Report compliment - missing reason field (validation error)", async () => {

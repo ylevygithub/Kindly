@@ -236,7 +236,7 @@ describe("API Integration Tests", () => {
     const res = await authenticatedApi("/api/compliments/daily-count", authToken);
     await expectStatus(res, 200);
     const data = await res.json();
-    expect(typeof data.daily_sends_count).toBe("number");
+    expect(typeof data.count).toBe("number");
   });
 
   // Compliment Detail Tests (only run if complimentId exists)

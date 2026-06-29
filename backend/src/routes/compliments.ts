@@ -127,6 +127,7 @@ export function register(app: App, fastify: FastifyInstance) {
             streak_days: { type: 'number' },
             is_premium: { type: 'boolean' },
             daily_sends_count: { type: 'number' },
+            contacts_import_answered: { type: 'boolean' },
             total_received: { type: 'number' },
             created_at: { type: 'string', format: 'date-time' },
           },
@@ -239,6 +240,35 @@ export function register(app: App, fastify: FastifyInstance) {
 
     app.logger.info({ userId: session.user.id }, 'Profile updated');
     return updated;
+  });
+
+  // PATCH /api/profiles/me/contacts-import - Mark contacts import as answered
+  fastify.patch('/api/profiles/me/contacts-import', {
+    schema: {
+      description: 'Mark contacts import prompt as answered',
+      tags: ['profiles'],
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+          },
+        },
+        401: { type: 'object', properties: { error: { type: 'string' } } },
+      },
+    },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const session = await requireAuth(request, reply);
+    if (!session) return;
+
+    app.logger.info({ userId: session.user.id }, 'Marking contacts import as answered');
+
+    await app.db.update(schema.profiles)
+      .set({ contacts_import_answered: true })
+      .where(eq(schema.profiles.id, session.user.id));
+
+    app.logger.info({ userId: session.user.id }, 'Contacts import marked as answered');
+    return { success: true };
   });
 
   // POST /api/profiles/setup - Setup new profile (idempotent)

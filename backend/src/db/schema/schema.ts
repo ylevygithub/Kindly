@@ -17,6 +17,7 @@ export const profiles = pgTable('profiles', {
   is_premium: boolean('is_premium').notNull().default(false),
   daily_sends_count: integer('daily_sends_count').notNull().default(0),
   daily_sends_reset_date: text('daily_sends_reset_date'),
+  contacts_import_answered: boolean('contacts_import_answered').notNull().default(false),
   created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 

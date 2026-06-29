@@ -15,6 +15,13 @@
       "when": 1782673728598,
       "tag": "20260628190848_daily_ironclad",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1782770312755,
+      "tag": "20260629215832_faulty_bastion",
+      "breakpoints": true
     }
   ]
 }

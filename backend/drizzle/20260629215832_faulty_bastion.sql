@@ -1,0 +1,1 @@
+ALTER TABLE "profiles" ADD COLUMN "contacts_import_answered" boolean DEFAULT false NOT NULL;

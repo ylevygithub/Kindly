@@ -100,6 +100,19 @@ describe("API Integration Tests", () => {
     expect(data.id).toBeDefined();
   });
 
+  test("Mark contacts import as answered", async () => {
+    const res = await authenticatedApi(
+      "/api/profiles/me/contacts-import",
+      authToken,
+      {
+        method: "PATCH",
+      }
+    );
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(data.success).toBe(true);
+  });
+
   test("Setup profile - missing username (validation error)", async () => {
     const res = await authenticatedApi("/api/profiles/setup", authToken, {
       method: "POST",
@@ -774,6 +787,13 @@ describe("API Integration Tests", () => {
         username: "hacker",
         avatar_emoji: "😈",
       }),
+    });
+    await expectStatus(res, 401);
+  });
+
+  test("Mark contacts import as answered without authentication (401)", async () => {
+    const res = await api("/api/profiles/me/contacts-import", {
+      method: "PATCH",
     });
     await expectStatus(res, 401);
   });

@@ -127,6 +127,7 @@ export function register(app: App, fastify: FastifyInstance) {
             streak_days: { type: 'number' },
             is_premium: { type: 'boolean' },
             daily_sends_count: { type: 'number' },
+            total_received: { type: 'number' },
             created_at: { type: 'string', format: 'date-time' },
           },
         },
@@ -165,8 +166,15 @@ export function register(app: App, fastify: FastifyInstance) {
       last_active_date: lastActiveDate,
     }).where(eq(schema.profiles.id, session.user.id));
 
-    const updated = { ...profile, streak_days: streakDays, last_active_date: lastActiveDate };
-    app.logger.info({ userId: session.user.id, streakDays }, 'Profile retrieved');
+    // Count compliments received by current user
+    const receivedCompliments = await app.db.query.compliments.findMany({
+      where: eq(schema.compliments.recipient_id, session.user.id),
+      columns: { id: true },
+    });
+    const totalReceived = receivedCompliments.length;
+
+    const updated = { ...profile, streak_days: streakDays, last_active_date: lastActiveDate, total_received: totalReceived };
+    app.logger.info({ userId: session.user.id, streakDays, totalReceived }, 'Profile retrieved');
 
     return updated;
   });

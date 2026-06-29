@@ -354,6 +354,22 @@ describe("API Integration Tests", () => {
     await expectStatus(res, 400);
   });
 
+  test("Guess compliment - missing guessed_user_id (validation error)", async () => {
+    if (!complimentId) {
+      return; // Skip if no compliment was created
+    }
+    const res = await authenticatedApi(
+      `/api/compliments/${complimentId}/guess`,
+      authToken,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      }
+    );
+    await expectStatus(res, 400);
+  });
+
   test("Reveal compliment sender", async () => {
     if (!complimentId) {
       return; // Skip if no compliment was created
@@ -534,13 +550,25 @@ describe("API Integration Tests", () => {
     await expectStatus(res, 404);
   });
 
-  test("Report compliment - missing required fields (validation error)", async () => {
+  test("Report compliment - missing reason field (validation error)", async () => {
     const res = await authenticatedApi("/api/reports", authToken, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         compliment_id: "00000000-0000-0000-0000-000000000000",
         // missing reason
+      }),
+    });
+    await expectStatus(res, 400);
+  });
+
+  test("Report compliment - missing compliment_id field (validation error)", async () => {
+    const res = await authenticatedApi("/api/reports", authToken, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        reason: "Test reason",
+        // missing compliment_id
       }),
     });
     await expectStatus(res, 400);

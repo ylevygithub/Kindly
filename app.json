@@ -15,7 +15,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.placeholder.app",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSContactsUsageDescription": "Kindly utilise tes contacts pour t'aider à inviter tes amis."
       }
     },
     "android": {
@@ -33,7 +34,8 @@
       "expo-font",
       "expo-router",
       "expo-web-browser",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-contacts"
     ],
     "scheme": "kindly",
     "experiments": {

@@ -2,6 +2,7 @@ import React from "react";
 import { View, StyleSheet } from "react-native";
 import { Stack } from "expo-router";
 import FloatingTabBar from "@/components/FloatingTabBar";
+import ContactImportModal from "@/components/ContactImportModal";
 import { COLORS } from "@/constants/Colors";
 
 const TABS = [
@@ -40,6 +41,7 @@ export default function TabLayout() {
         <Stack.Screen name="profile" />
       </Stack>
       <FloatingTabBar tabs={TABS} containerWidth={280} />
+      <ContactImportModal />
     </View>
   );
 }

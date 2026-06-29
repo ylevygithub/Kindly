@@ -92,15 +92,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchUser = async () => {
     try {
       setLoading(true);
-      // The bearer token (a JWT) is captured automatically by the
-      // `onSuccess` hook on authClient (in lib/auth.ts) — it reads the
-      // `set-auth-jwt` response header that the auth-service emits on
-      // every session-returning endpoint, including this getSession call.
-      // Do NOT pull a token off session.data.session.token: that field is
-      // the opaque session ID, and the api-service's JWKS verifier rejects it.
+      console.log("[Auth] fetchUser: calling getSession");
       const session = await authClient.getSession();
       if (session?.data?.user) {
         setUser(session.data.user as User);
+        if (session.data.session?.token) {
+          console.log("[Auth] fetchUser: storing session token as bearer token");
+          await setBearerToken(session.data.session.token);
+        }
       } else {
         setUser(null);
         await clearAuthTokens();

@@ -27,17 +27,6 @@ export const authClient = createAuthClient({
     }),
   ],
   fetchOptions: {
-    // Capture the JWT issued by Better Auth's jwt() plugin from the
-    // `set-auth-jwt` response header on any session-returning endpoint
-    // (sign-in, sign-up, getSession). The api-service verifies this JWT
-    // via JWKS — `session.data.session.token` is the session ID, not a
-    // JWT, and storing that as the bearer would 401 every api-service call.
-    onSuccess: async (ctx: { response: Response }) => {
-      const jwt = ctx.response.headers.get("set-auth-jwt");
-      if (jwt) {
-        await setBearerToken(jwt);
-      }
-    },
     ...(Platform.OS === "web" && {
       credentials: "include",
       auth: {

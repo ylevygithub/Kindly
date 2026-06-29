@@ -68,10 +68,10 @@ export default function SendScreen() {
     console.log("[Send] Loading contacts from API");
     setContactsLoading(true);
     try {
-      const data = await authenticatedGet<{ contacts: Contact[] }>("/api/contacts/list");
-      const list = Array.isArray(data) ? data : (data.contacts || []);
-      setContacts(list);
-      console.log("[Send] Contacts loaded:", list.length);
+      const data = await authenticatedGet<any>("/api/contacts/list");
+      const arr = Array.isArray(data) ? data : (data?.contacts || []);
+      setContacts(arr);
+      console.log("[Send] Contacts loaded:", arr.length);
     } catch (err) {
       console.log("[Send] Error loading contacts:", err);
       setContacts([]);
@@ -82,8 +82,8 @@ export default function SendScreen() {
 
   const loadDailyCount = async () => {
     try {
-      const data = await authenticatedGet<{ count: number }>("/api/compliments/daily-count");
-      setDailyCount(data.count || 0);
+      const data = await authenticatedGet<any>("/api/compliments/daily-count");
+      setDailyCount(typeof data?.count === 'number' ? data.count : 0);
     } catch {
       setDailyCount(0);
     }
@@ -93,10 +93,17 @@ export default function SendScreen() {
     console.log("[Send] Loading suggestions for category:", category);
     setSuggestionsLoading(true);
     try {
-      const data = await authenticatedGet<SuggestedCompliment[]>(
+      const data = await authenticatedGet<any>(
         `/api/suggested-compliments?category=${encodeURIComponent(category)}`
       );
-      setSuggestions(data);
+      const raw = Array.isArray(data) ? data : (data?.suggestions || data?.compliments || []);
+      // Normalize suggestion objects to always have { id, text }
+      const arr: SuggestedCompliment[] = raw.map((item: any, idx: number) => ({
+        id: String(item?.id ?? item?.compliment_id ?? idx),
+        text: String(item?.text ?? item?.content ?? item?.compliment_text ?? item?.suggestion ?? ""),
+      }));
+      console.log("[Send] First suggestion shape:", raw[0] ? JSON.stringify(raw[0]) : "empty");
+      setSuggestions(arr);
     } catch {
       setSuggestions([]);
     } finally {

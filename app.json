@@ -4,10 +4,10 @@
     "slug": "kindly",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/app-icon-ded.png",
+    "icon": "./assets/images/app-icon-nwx.png",
     "userInterfaceStyle": "automatic",
     "splash": {
-      "image": "./assets/images/app-icon-ded.png",
+      "image": "./assets/images/app-icon-nwx.png",
       "resizeMode": "contain",
       "backgroundColor": "#FFFFFF"
     },
@@ -20,7 +20,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/app-icon-ded.png",
+        "foregroundImage": "./assets/images/app-icon-nwx.png",
         "backgroundColor": "#FFFFFF"
       },
       "package": "com.placeholder.app"

@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { eq, and, ne, sql } from 'drizzle-orm';
+import { eq, and, ne, sql, inArray } from 'drizzle-orm';
+import { user } from '../db/schema/auth-schema.js';
 import * as schema from '../db/schema/schema.js';
 import type { App } from '../index.js';
 
@@ -333,9 +334,18 @@ export function register(app: App, fastify: FastifyInstance) {
 
     app.logger.info({ userId: session.user.id }, 'Listing contacts');
 
-    // Get all profiles except current user
+    // Get all real users (those in the user table) as contacts, excluding current user
+    const allUsers = await app.db.query.user.findMany({
+      columns: { id: true },
+    });
+    const userIds = allUsers.map(u => u.id);
+
+    // Get profiles for real users only, excluding current user
     const contacts = await app.db.query.profiles.findMany({
-      where: ne(schema.profiles.id, session.user.id),
+      where: and(
+        ne(schema.profiles.id, session.user.id),
+        inArray(schema.profiles.id, userIds)
+      ),
       columns: { id: true, username: true, avatar_emoji: true },
     });
 
@@ -400,8 +410,14 @@ export function register(app: App, fastify: FastifyInstance) {
                   text: { type: 'string' },
                   category: { type: 'string' },
                   is_revealed: { type: 'boolean' },
-                  sender: { type: 'object', nullable: true },
-                  created_at: { type: 'string' },
+                  created_at: { type: 'string', format: 'date-time' },
+                  sender: {
+                    type: 'object',
+                    properties: {
+                      username: { type: 'string' },
+                      avatar_emoji: { type: 'string' },
+                    },
+                  },
                 },
               },
             },
@@ -445,11 +461,9 @@ export function register(app: App, fastify: FastifyInstance) {
       if (c.is_revealed) {
         const sender = await app.db.query.profiles.findFirst({
           where: eq(schema.profiles.id, c.sender_id),
-          columns: { id: true, username: true, avatar_emoji: true },
+          columns: { username: true, avatar_emoji: true },
         });
         item.sender = sender;
-      } else {
-        item.sender = null;
       }
 
       result.push(item);
@@ -478,12 +492,12 @@ export function register(app: App, fastify: FastifyInstance) {
           type: 'object',
           properties: {
             id: { type: 'string' },
+            sender_id: { type: 'string' },
             recipient_id: { type: 'string' },
             text: { type: 'string' },
             category: { type: 'string' },
             created_at: { type: 'string', format: 'date-time' },
             is_revealed: { type: 'boolean' },
-            sender: { type: 'object', nullable: true },
           },
         },
         400: { type: 'object', properties: { error: { type: 'string' }, code: { type: 'string' } } },
@@ -558,12 +572,12 @@ export function register(app: App, fastify: FastifyInstance) {
     app.logger.info({ userId: session.user.id, complimentId: compliment.id }, 'Compliment sent');
     return reply.status(201).send({
       id: compliment.id,
+      sender_id: compliment.sender_id,
       recipient_id: compliment.recipient_id,
       text: compliment.text,
       category: compliment.category,
       created_at: compliment.created_at,
       is_revealed: compliment.is_revealed,
-      sender: null,
     });
   });
 

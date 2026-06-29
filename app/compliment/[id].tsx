@@ -222,16 +222,22 @@ export default function ComplimentDetailScreen() {
             </View>
             <Text style={styles.complimentText}>{compliment.text}</Text>
 
-            {compliment.is_revealed && compliment.sender && (
-              <View style={styles.revealedSender}>
-                <Text style={styles.revealedSenderAvatar}>{compliment.sender.avatar_emoji}</Text>
-                <View>
-                  <Text style={styles.revealedSenderName}>{compliment.sender.username}</Text>
-                  <View style={styles.revealedBadge}>
-                    <Text style={styles.revealedBadgeText}>Révélé ✓</Text>
+            {compliment.is_revealed && (
+              compliment.sender ? (
+                <View style={styles.revealedSender}>
+                  <Text style={styles.revealedSenderAvatar}>{compliment.sender.avatar_emoji}</Text>
+                  <View>
+                    <Text style={styles.revealedSenderName}>{compliment.sender.username}</Text>
+                    <View style={styles.revealedBadge}>
+                      <Text style={styles.revealedBadgeText}>Révélé ✓</Text>
+                    </View>
                   </View>
                 </View>
-              </View>
+              ) : (
+                <View style={styles.revealedBadge}>
+                  <Text style={styles.revealedBadgeText}>Révélé ✓</Text>
+                </View>
+              )
             )}
           </Animated.View>
 

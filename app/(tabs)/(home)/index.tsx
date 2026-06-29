@@ -136,14 +136,20 @@ function ComplimentCard({ item, index }: { item: Compliment; index: number }) {
         <Text style={styles.complimentText}>{item.text}</Text>
 
         {/* Revealed sender */}
-        {item.is_revealed && item.sender ? (
-          <View style={styles.revealedRow}>
-            <Text style={styles.senderAvatar}>{item.sender.avatar_emoji}</Text>
-            <Text style={styles.senderUsername}>{item.sender.username}</Text>
+        {item.is_revealed ? (
+          item.sender ? (
+            <View style={styles.revealedRow}>
+              <Text style={styles.senderAvatar}>{item.sender.avatar_emoji}</Text>
+              <Text style={styles.senderUsername}>{item.sender.username}</Text>
+              <View style={styles.revealedBadge}>
+                <Text style={styles.revealedBadgeText}>Révélé ✓</Text>
+              </View>
+            </View>
+          ) : (
             <View style={styles.revealedBadge}>
               <Text style={styles.revealedBadgeText}>Révélé ✓</Text>
             </View>
-          </View>
+          )
         ) : (
           <View style={styles.cardActions}>
             <AnimatedPressable onPress={handleGuess} style={styles.guessButton}>

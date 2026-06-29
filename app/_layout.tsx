@@ -14,6 +14,7 @@ import {
 } from "@react-navigation/native";
 import { StatusBar } from "expo-status-bar";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { BadgeProvider } from "@/contexts/BadgeContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const DevErrorBoundary = __DEV__
@@ -47,6 +48,7 @@ export default function RootLayout() {
       <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
         <SafeAreaProvider>
           <AuthProvider>
+            <BadgeProvider>
             <GestureHandlerRootView style={{ flex: 1 }}>
               <Stack>
                 <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -59,6 +61,7 @@ export default function RootLayout() {
               </Stack>
               <SystemBars style="auto" />
             </GestureHandlerRootView>
+            </BadgeProvider>
           </AuthProvider>
         </SafeAreaProvider>
       </ThemeProvider>

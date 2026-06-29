@@ -12,6 +12,7 @@ import {
   Animated,
   Linking,
 } from "react-native";
+import { useBadge } from "@/contexts/BadgeContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { COLORS } from "@/constants/Colors";
@@ -43,6 +44,7 @@ type Step = 1 | 2 | 3;
 export default function SendScreen() {
   const insets = useSafeAreaInsets();
   const confettiRef = useRef<ConfettiRef>(null);
+  const { refreshBadge } = useBadge();
 
   const [step, setStep] = useState<Step>(1);
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -58,6 +60,24 @@ export default function SendScreen() {
   const [sending, setSending] = useState(false);
   const [dailyCount, setDailyCount] = useState(0);
   const [dailyLimit] = useState(3);
+
+  // Toast state
+  const toastOpacity = useRef(new Animated.Value(0)).current;
+  const toastTranslateY = useRef(new Animated.Value(20)).current;
+
+  const showSuccessToast = () => {
+    Animated.parallel([
+      Animated.timing(toastOpacity, { toValue: 1, duration: 250, useNativeDriver: true }),
+      Animated.timing(toastTranslateY, { toValue: 0, duration: 250, useNativeDriver: true }),
+    ]).start(() => {
+      setTimeout(() => {
+        Animated.parallel([
+          Animated.timing(toastOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+          Animated.timing(toastTranslateY, { toValue: 20, duration: 300, useNativeDriver: true }),
+        ]).start();
+      }, 2000);
+    });
+  };
 
   useEffect(() => {
     loadContacts();
@@ -113,12 +133,14 @@ export default function SendScreen() {
 
   const handleSelectContact = (contact: Contact) => {
     console.log("[Send] Contact selected:", contact.username);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedContact(contact);
     setStep(2);
   };
 
   const handleSelectCategory = (categoryId: string) => {
     console.log("[Send] Category selected:", categoryId);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedCategory(categoryId);
     setStep(3);
     loadSuggestions(categoryId);
@@ -126,6 +148,7 @@ export default function SendScreen() {
 
   const handleSelectSuggestion = (text: string) => {
     console.log("[Send] Suggestion selected:", text.substring(0, 30));
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedSuggestion(text);
     setIsCustom(false);
     setCustomText("");
@@ -135,7 +158,8 @@ export default function SendScreen() {
     const text = isCustom ? customText : selectedSuggestion;
     if (!selectedContact || !text.trim()) return;
 
-    console.log("[Send] Sending compliment to:", selectedContact.username, "category:", selectedCategory);
+    console.log("[Send] Send button pressed, recipient:", selectedContact.username, "category:", selectedCategory);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSending(true);
     try {
       await authenticatedPost("/api/compliments", {
@@ -146,7 +170,10 @@ export default function SendScreen() {
       console.log("[Send] Compliment sent successfully!");
       confettiRef.current?.trigger();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      showSuccessToast();
       setDailyCount((c) => c + 1);
+      // Refresh badge so recipient sees new count
+      refreshBadge();
       // Reset form
       setStep(1);
       setSelectedContact(null);
@@ -154,7 +181,6 @@ export default function SendScreen() {
       setSelectedSuggestion("");
       setCustomText("");
       setIsCustom(false);
-      Alert.alert("🎉 Compliment envoyé !", "Ton compliment a été envoyé anonymement.");
     } catch (err: any) {
       console.log("[Send] Error sending compliment:", err?.message);
       const msg = String(err?.message || "");
@@ -185,6 +211,21 @@ export default function SendScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <ConfettiAnimation ref={confettiRef} />
+
+      {/* Success toast */}
+      <Animated.View
+        style={[
+          styles.successToast,
+          {
+            opacity: toastOpacity,
+            transform: [{ translateY: toastTranslateY }],
+            bottom: insets.bottom + 100,
+          },
+        ]}
+        pointerEvents="none"
+      >
+        <Text style={styles.successToastText}>Compliment envoyé ! 💛</Text>
+      </Animated.View>
 
       {/* Header */}
       <View style={styles.header}>
@@ -257,13 +298,14 @@ export default function SendScreen() {
               ) : filteredContacts.length === 0 ? (
                 <View style={styles.noContactsState}>
                   <Text style={styles.noContactsEmoji}>👥</Text>
-                  <Text style={styles.noContactsTitle}>Invite tes amis !</Text>
+                  <Text style={styles.noContactsTitle}>Aucun contact pour l'instant</Text>
                   <Text style={styles.noContactsSubtitle}>
-                    Aucun ami sur Kindly pour l'instant. Invite-les pour leur envoyer des compliments !
+                    Invite tes amis via le bouton Partager sur ton profil !
                   </Text>
                   <AnimatedPressable
                     onPress={() => {
                       console.log("[Send] Invite friends button pressed");
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       Linking.openURL("sms:?body=Rejoins-moi sur Kindly, l'app pour envoyer des compliments anonymes ! 💛");
                     }}
                     style={styles.inviteButton}
@@ -722,5 +764,24 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "800",
     color: COLORS.text,
+  },
+  successToast: {
+    position: "absolute",
+    alignSelf: "center",
+    backgroundColor: COLORS.text,
+    borderRadius: 24,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    zIndex: 999,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  successToastText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: COLORS.background,
   },
 });

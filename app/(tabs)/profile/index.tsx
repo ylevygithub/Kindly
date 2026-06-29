@@ -10,6 +10,10 @@ import {
   Modal,
   TouchableOpacity,
   ActivityIndicator,
+  Share,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -83,6 +87,14 @@ export default function ProfileScreen() {
   const [recentUsers, setRecentUsers] = useState<RecentUser[]>([]);
   const [signingOut, setSigningOut] = useState(false);
 
+  // Support modal state
+  const [supportModalVisible, setSupportModalVisible] = useState(false);
+  const [supportSubject, setSupportSubject] = useState("");
+  const [supportMessage, setSupportMessage] = useState("");
+  const [supportSending, setSupportSending] = useState(false);
+  const [supportSuccess, setSupportSuccess] = useState(false);
+  const [supportError, setSupportError] = useState("");
+
   useEffect(() => {
     loadProfile();
   }, []);
@@ -107,6 +119,64 @@ export default function ProfileScreen() {
       setRecentUsers(data);
     } catch {
       setRecentUsers([]);
+    }
+  };
+
+  const handleShareProfile = async () => {
+    const username = profile?.username || user?.name || "moi";
+    console.log("[Profile] Share profile button pressed, username:", username);
+    try {
+      const result = await Share.share(
+        {
+          message: `Envoie-moi un compliment anonyme sur Kindly ! 💛\nhttps://kindly.app/u/${username}`,
+          title: "Mon profil Kindly",
+        }
+      );
+      console.log("[Profile] Share result:", result.action);
+    } catch (err) {
+      console.log("[Profile] Share error:", err);
+    }
+  };
+
+  const handleOpenSupportModal = () => {
+    console.log("[Profile] Support modal opened");
+    setSupportSubject("");
+    setSupportMessage("");
+    setSupportSending(false);
+    setSupportSuccess(false);
+    setSupportError("");
+    setSupportModalVisible(true);
+  };
+
+  const handleCloseSupportModal = () => {
+    console.log("[Profile] Support modal closed");
+    setSupportModalVisible(false);
+  };
+
+  const handleSendSupport = async () => {
+    if (!supportSubject.trim() || !supportMessage.trim()) {
+      setSupportError("Merci de remplir tous les champs.");
+      return;
+    }
+    console.log("[Profile] Sending support message, subject:", supportSubject);
+    setSupportSending(true);
+    setSupportError("");
+    try {
+      await authenticatedPost("/api/support/contact", {
+        subject: supportSubject.trim(),
+        message: supportMessage.trim(),
+      });
+      console.log("[Profile] Support message sent successfully");
+      setSupportSuccess(true);
+      setTimeout(() => {
+        setSupportModalVisible(false);
+        setSupportSuccess(false);
+      }, 2500);
+    } catch (err) {
+      console.log("[Profile] Support send error:", err);
+      setSupportError("Erreur lors de l'envoi, réessaie.");
+    } finally {
+      setSupportSending(false);
     }
   };
 
@@ -196,8 +266,27 @@ export default function ProfileScreen() {
                 )}
               </View>
               <Text style={styles.userEmail}>{user?.email}</Text>
+              {/* Credits & streak pills */}
+              <View style={styles.pillRow}>
+                <View style={styles.pill}>
+                  <Text style={styles.pillText}>💛 {credits} crédits</Text>
+                </View>
+                <View style={styles.pill}>
+                  <Text style={styles.pillText}>
+                    {streak > 0 ? `🔥 ${streak} jours` : "🌱 Nouveau"}
+                  </Text>
+                </View>
+              </View>
             </View>
           </View>
+
+          {/* Share profile button */}
+          <AnimatedPressable
+            onPress={handleShareProfile}
+            style={styles.shareButton}
+          >
+            <Text style={styles.shareButtonText}>Partager mon profil 🔗</Text>
+          </AnimatedPressable>
 
           {/* Stats row */}
           <View style={styles.statsRow}>
@@ -267,7 +356,7 @@ export default function ProfileScreen() {
             <View style={styles.settingsCard}>
               <AnimatedPressable
                 onPress={() => {
-                  console.log("[Profile] Report problem pressed");
+                  console.log("[Profile] Report problem settings item pressed");
                   Linking.openURL("mailto:support@kindly.app?subject=Signalement%20d%27un%20problème");
                 }}
                 style={styles.settingsItem}
@@ -307,6 +396,14 @@ export default function ProfileScreen() {
               </AnimatedPressable>
             </View>
           </View>
+
+          {/* Support button */}
+          <AnimatedPressable
+            onPress={handleOpenSupportModal}
+            style={styles.supportButton}
+          >
+            <Text style={styles.supportButtonText}>Signaler un problème ✉️</Text>
+          </AnimatedPressable>
 
           {/* Sign out */}
           <AnimatedPressable
@@ -360,6 +457,96 @@ export default function ProfileScreen() {
             )}
           </View>
         </View>
+      </Modal>
+
+      {/* Support modal */}
+      <Modal
+        visible={supportModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={handleCloseSupportModal}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Contacter le support</Text>
+              <TouchableOpacity onPress={handleCloseSupportModal}>
+                <Text style={styles.modalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            {supportSuccess ? (
+              <View style={styles.supportSuccessContainer}>
+                <Text style={styles.supportSuccessEmoji}>💛</Text>
+                <Text style={styles.supportSuccessText}>
+                  Message envoyé ! On te répond sous 24h 💛
+                </Text>
+              </View>
+            ) : (
+              <>
+                <TextInput
+                  style={styles.supportInput}
+                  placeholder="Sujet"
+                  placeholderTextColor={COLORS.textTertiary}
+                  value={supportSubject}
+                  onChangeText={(text) => {
+                    console.log("[Profile] Support subject changed");
+                    setSupportSubject(text);
+                    setSupportError("");
+                  }}
+                  returnKeyType="next"
+                  editable={!supportSending}
+                />
+
+                <TextInput
+                  style={[styles.supportInput, styles.supportMessageInput]}
+                  placeholder="Décris ton problème..."
+                  placeholderTextColor={COLORS.textTertiary}
+                  value={supportMessage}
+                  onChangeText={(text) => {
+                    console.log("[Profile] Support message changed");
+                    setSupportMessage(text);
+                    setSupportError("");
+                  }}
+                  multiline
+                  numberOfLines={4}
+                  textAlignVertical="top"
+                  editable={!supportSending}
+                />
+
+                {supportError.length > 0 && (
+                  <Text style={styles.supportErrorText}>{supportError}</Text>
+                )}
+
+                <AnimatedPressable
+                  onPress={() => {
+                    console.log("[Profile] Support send button pressed");
+                    handleSendSupport();
+                  }}
+                  disabled={supportSending}
+                  style={[styles.supportSendButton, supportSending && styles.supportSendButtonDisabled]}
+                >
+                  {supportSending ? (
+                    <ActivityIndicator color={COLORS.surface} size="small" />
+                  ) : (
+                    <Text style={styles.supportSendButtonText}>Envoyer</Text>
+                  )}
+                </AnimatedPressable>
+
+                <TouchableOpacity
+                  onPress={handleCloseSupportModal}
+                  style={styles.supportCancelButton}
+                  disabled={supportSending}
+                >
+                  <Text style={styles.supportCancelText}>Annuler</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -435,6 +622,39 @@ const styles = StyleSheet.create({
   userEmail: {
     fontSize: 13,
     color: COLORS.textTertiary,
+  },
+  pillRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 6,
+    flexWrap: "wrap",
+  },
+  pill: {
+    backgroundColor: COLORS.primaryMuted,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderWidth: 1,
+    borderColor: "rgba(255,184,48,0.25)",
+  },
+  pillText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: COLORS.text,
+  },
+  shareButton: {
+    backgroundColor: COLORS.primaryMuted,
+    borderRadius: 16,
+    height: 52,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+  },
+  shareButtonText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: COLORS.text,
   },
   statsRow: {
     flexDirection: "row",
@@ -589,6 +809,20 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.divider,
     marginLeft: 52,
   },
+  supportButton: {
+    backgroundColor: COLORS.surfaceSecondary,
+    borderRadius: 16,
+    height: 52,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  supportButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: COLORS.textSecondary,
+  },
   signOutButton: {
     backgroundColor: "rgba(248,113,113,0.1)",
     borderRadius: 16,
@@ -659,5 +893,67 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
     color: COLORS.danger,
+  },
+  // Support modal styles
+  supportInput: {
+    backgroundColor: COLORS.surfaceSecondary,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: COLORS.text,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  supportMessageInput: {
+    minHeight: 110,
+    paddingTop: 12,
+  },
+  supportErrorText: {
+    fontSize: 13,
+    color: COLORS.danger,
+    fontWeight: "500",
+    paddingHorizontal: 4,
+  },
+  supportSendButton: {
+    backgroundColor: COLORS.primary,
+    borderRadius: 14,
+    height: 52,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 4,
+  },
+  supportSendButtonDisabled: {
+    opacity: 0.6,
+  },
+  supportSendButtonText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: COLORS.text,
+  },
+  supportCancelButton: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+  },
+  supportCancelText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: COLORS.textSecondary,
+  },
+  supportSuccessContainer: {
+    alignItems: "center",
+    paddingVertical: 32,
+    gap: 12,
+  },
+  supportSuccessEmoji: {
+    fontSize: 48,
+  },
+  supportSuccessText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: COLORS.text,
+    textAlign: "center",
+    lineHeight: 24,
   },
 });

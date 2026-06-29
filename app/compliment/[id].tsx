@@ -106,6 +106,7 @@ export default function ComplimentDetailScreen() {
 
   const handleGuess = async (userId: string) => {
     console.log("[ComplimentDetail] Guess pressed for user:", userId);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedGuess(userId);
     try {
       const result = await authenticatedPost<{ correct: boolean }>(`/api/compliments/${id}/guess`, {
@@ -121,6 +122,7 @@ export default function ComplimentDetailScreen() {
 
   const handleReveal = async () => {
     console.log("[ComplimentDetail] Reveal button pressed for compliment:", id);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setRevealing(true);
     try {
       const result = await authenticatedPost<ComplimentDetail>(`/api/compliments/${id}/reveal`, {});
@@ -155,6 +157,7 @@ export default function ComplimentDetailScreen() {
 
   const handleShare = async () => {
     console.log("[ComplimentDetail] Share button pressed for compliment:", id);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSharing(true);
     try {
       await authenticatedPost(`/api/compliments/${id}/share`, {});

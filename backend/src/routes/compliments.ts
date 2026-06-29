@@ -1105,10 +1105,8 @@ export function register(app: App, fastify: FastifyInstance) {
       },
       response: {
         200: {
-          type: 'object',
-          properties: {
-            suggestions: { type: 'array', items: { type: 'string' } },
-          },
+          type: 'array',
+          items: { type: 'string' },
         },
         400: { type: 'object', properties: { error: { type: 'string' } } },
       },
@@ -1124,6 +1122,6 @@ export function register(app: App, fastify: FastifyInstance) {
     }
 
     app.logger.info({ category, count: suggestions.length }, 'Suggestions retrieved');
-    return { suggestions };
+    return suggestions;
   });
 }

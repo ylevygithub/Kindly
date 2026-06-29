@@ -29,6 +29,8 @@ describe("API Integration Tests", () => {
       }),
     });
     await expectStatus(res, 200, 201);
+    const data = await res.json();
+    expect(data.id).toBeDefined();
   });
 
   test("Get current user profile", async () => {
@@ -557,30 +559,35 @@ describe("API Integration Tests", () => {
     const res = await api("/api/suggested-compliments?category=Personnalité");
     await expectStatus(res, 200);
     const data = await res.json();
-    expect(data.suggestions).toBeDefined();
-    expect(Array.isArray(data.suggestions)).toBe(true);
+    expect(Array.isArray(data)).toBe(true);
   });
 
   test("Get suggested compliments for Look category", async () => {
     const res = await api("/api/suggested-compliments?category=Look");
     await expectStatus(res, 200);
     const data = await res.json();
-    expect(Array.isArray(data.suggestions)).toBe(true);
+    expect(Array.isArray(data)).toBe(true);
   });
 
   test("Get suggested compliments for Talent category", async () => {
     const res = await api("/api/suggested-compliments?category=Talent");
     await expectStatus(res, 200);
+    const data = await res.json();
+    expect(Array.isArray(data)).toBe(true);
   });
 
   test("Get suggested compliments for Humour category", async () => {
     const res = await api("/api/suggested-compliments?category=Humour");
     await expectStatus(res, 200);
+    const data = await res.json();
+    expect(Array.isArray(data)).toBe(true);
   });
 
   test("Get suggested compliments for Autre category", async () => {
     const res = await api("/api/suggested-compliments?category=Autre");
     await expectStatus(res, 200);
+    const data = await res.json();
+    expect(Array.isArray(data)).toBe(true);
   });
 
   test("Get suggested compliments - invalid category (validation error)", async () => {

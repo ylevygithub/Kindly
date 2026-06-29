@@ -14,7 +14,7 @@ import {
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { COLORS } from "@/constants/Colors";
-import { apiGet, apiPost } from "@/utils/api";
+import { authenticatedGet, authenticatedPost } from "@/utils/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { AnimatedPressable } from "@/components/AnimatedPressable";
 
@@ -90,7 +90,7 @@ export default function ProfileScreen() {
   const loadProfile = async () => {
     console.log("[Profile] Loading profile data");
     try {
-      const data = await apiGet<Profile>("/api/profiles/me");
+      const data = await authenticatedGet<Profile>("/api/profiles/me");
       setProfile(data);
       console.log("[Profile] Profile loaded:", data.username);
     } catch (err) {
@@ -103,7 +103,7 @@ export default function ProfileScreen() {
   const loadRecentUsers = async () => {
     console.log("[Profile] Loading recent users for block modal");
     try {
-      const data = await apiGet<RecentUser[]>("/api/users/recent");
+      const data = await authenticatedGet<RecentUser[]>("/api/users/recent");
       setRecentUsers(data);
     } catch {
       setRecentUsers([]);
@@ -150,7 +150,7 @@ export default function ProfileScreen() {
           onPress: async () => {
             console.log("[Profile] Blocking user:", userId);
             try {
-              await apiPost("/api/users/block", { user_id: userId });
+              await authenticatedPost("/api/users/block", { user_id: userId });
               setRecentUsers((prev) => prev.filter((u) => u.id !== userId));
               Alert.alert("✓", `${username} a été bloqué(e).`);
             } catch {
@@ -449,7 +449,6 @@ const styles = StyleSheet.create({
     gap: 4,
     borderWidth: 1,
     borderColor: COLORS.border,
-    boxShadow: "0 2px 6px rgba(26,18,7,0.04)",
   },
   statCardMiddle: {
     borderColor: "rgba(255,184,48,0.2)",
@@ -529,7 +528,6 @@ const styles = StyleSheet.create({
     padding: 16,
     borderWidth: 1,
     borderColor: COLORS.border,
-    boxShadow: "0 2px 6px rgba(26,18,7,0.04)",
   },
   creditsInfo: {
     flex: 1,
@@ -563,7 +561,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
     overflow: "hidden",
-    boxShadow: "0 2px 6px rgba(26,18,7,0.04)",
   },
   settingsItem: {
     flexDirection: "row",

@@ -68,9 +68,10 @@ export default function SendScreen() {
     console.log("[Send] Loading contacts from API");
     setContactsLoading(true);
     try {
-      const data = await authenticatedGet<Contact[]>("/api/contacts/list");
-      setContacts(data);
-      console.log("[Send] Contacts loaded:", data.length);
+      const data = await authenticatedGet<{ contacts: Contact[] }>("/api/contacts/list");
+      const list = Array.isArray(data) ? data : (data.contacts || []);
+      setContacts(list);
+      console.log("[Send] Contacts loaded:", list.length);
     } catch (err) {
       console.log("[Send] Error loading contacts:", err);
       setContacts([]);

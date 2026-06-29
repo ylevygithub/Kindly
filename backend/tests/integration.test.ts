@@ -727,6 +727,107 @@ describe("API Integration Tests", () => {
     await expectStatus(res, 400);
   });
 
+  // Support Tests
+  test("Send support/contact email", async () => {
+    const res = await authenticatedApi("/api/support/contact", authToken, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        subject: "I have a question about credits",
+        message: "How do I earn more credits in the app?",
+      }),
+    });
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(data.success).toBe(true);
+  });
+
+  test("Send support/contact email with custom email", async () => {
+    const res = await authenticatedApi("/api/support/contact", authToken, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        subject: "Bug report",
+        message: "I found a bug in the compliments feature",
+        email: "test@example.com",
+      }),
+    });
+    await expectStatus(res, 200, 400, 500);
+  });
+
+  test("Send support/contact email - missing subject (validation error)", async () => {
+    const res = await authenticatedApi("/api/support/contact", authToken, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: "This is a support message",
+      }),
+    });
+    await expectStatus(res, 400);
+  });
+
+  test("Send support/contact email - missing message (validation error)", async () => {
+    const res = await authenticatedApi("/api/support/contact", authToken, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        subject: "Support request",
+      }),
+    });
+    await expectStatus(res, 400);
+  });
+
+  test("Send support/contact email - empty subject (validation error)", async () => {
+    const res = await authenticatedApi("/api/support/contact", authToken, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        subject: "",
+        message: "Message content",
+      }),
+    });
+    await expectStatus(res, 400);
+  });
+
+  test("Send support/contact email - empty message (validation error)", async () => {
+    const res = await authenticatedApi("/api/support/contact", authToken, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        subject: "Support request",
+        message: "",
+      }),
+    });
+    await expectStatus(res, 400);
+  });
+
+  test("Send support/contact email - invalid email format (validation error)", async () => {
+    const res = await authenticatedApi("/api/support/contact", authToken, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        subject: "Support request",
+        message: "This is a message",
+        email: "not-an-email",
+      }),
+    });
+    await expectStatus(res, 400);
+  });
+
+  test("Send support/contact email without authentication (200)", async () => {
+    const res = await api("/api/support/contact", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        subject: "Support request",
+        message: "This is a support message",
+      }),
+    });
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(data.success).toBe(true);
+  });
+
   // Suggested Compliments Tests
   test("Get suggested compliments for Personnalité category", async () => {
     const res = await api("/api/suggested-compliments?category=Personnalité");

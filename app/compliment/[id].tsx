@@ -87,12 +87,15 @@ export default function ComplimentDetailScreen() {
   const loadCompliment = async () => {
     console.log("[ComplimentDetail] Loading compliment:", id);
     try {
-      const [detail, suggestions] = await Promise.all([
+      const [detail, suggestionsRaw] = await Promise.all([
         authenticatedGet<ComplimentDetail>(`/api/compliments/${id}`),
-        authenticatedGet<GuessSuggestion[]>(`/api/compliments/${id}/guess-suggestions`),
+        authenticatedGet<any>(`/api/compliments/${id}/guess-suggestions`),
       ]);
+      const suggestionsArr: GuessSuggestion[] = Array.isArray(suggestionsRaw)
+        ? suggestionsRaw
+        : ((suggestionsRaw as any)?.suggestions || []);
       setCompliment(detail);
-      setGuessSuggestions(suggestions);
+      setGuessSuggestions(suggestionsArr);
       console.log("[ComplimentDetail] Loaded, is_revealed:", detail.is_revealed);
     } catch (err) {
       console.log("[ComplimentDetail] Error loading:", err);
@@ -374,7 +377,7 @@ const styles = StyleSheet.create({
     gap: 16,
     borderWidth: 1,
     borderColor: "rgba(255,184,48,0.2)",
-    boxShadow: "0 4px 16px rgba(26,18,7,0.08)",
+
   },
   mainCardHeader: {
     flexDirection: "row",
@@ -460,7 +463,7 @@ const styles = StyleSheet.create({
     gap: 6,
     borderWidth: 1.5,
     borderColor: COLORS.border,
-    boxShadow: "0 2px 6px rgba(26,18,7,0.04)",
+
   },
   guessCardSelected: {
     borderColor: COLORS.primary,
@@ -511,7 +514,7 @@ const styles = StyleSheet.create({
     padding: 20,
     alignItems: "center",
     gap: 4,
-    boxShadow: "0 4px 16px rgba(255,184,48,0.35)",
+
   },
   revealButtonLoading: {
     opacity: 0.7,

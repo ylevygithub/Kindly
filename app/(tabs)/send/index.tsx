@@ -712,11 +712,11 @@ const styles = StyleSheet.create({
     height: 56,
     alignItems: "center",
     justifyContent: "center",
-    boxShadow: "0 4px 16px rgba(255,184,48,0.35)",
+
   },
   sendButtonDisabled: {
     opacity: 0.5,
-    boxShadow: "none",
+
   },
   sendButtonText: {
     fontSize: 17,

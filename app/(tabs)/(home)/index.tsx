@@ -171,15 +171,16 @@ export default function HomeScreen() {
   const fetchCompliments = useCallback(async (isRefresh = false) => {
     console.log("[Home] Fetching compliments, isRefresh:", isRefresh);
     try {
-      const data = await authenticatedGet<Compliment[]>("/api/compliments");
-      const newCount = data.length;
+      const data = await authenticatedGet<any>("/api/compliments");
+      const arr: Compliment[] = Array.isArray(data) ? data : ((data as any)?.compliments || []);
+      const newCount = arr.length;
       if (isRefresh && newCount > prevCountRef.current && prevCountRef.current > 0) {
         console.log("[Home] New compliments received! Triggering confetti");
         confettiRef.current?.trigger();
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
       prevCountRef.current = newCount;
-      setCompliments(data);
+      setCompliments(arr);
     } catch (err) {
       console.log("[Home] Error fetching compliments:", err);
     } finally {
@@ -303,7 +304,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderWidth: 1,
     borderColor: "rgba(255,184,48,0.15)",
-    boxShadow: "0 2px 8px rgba(26,18,7,0.06), 0 1px 2px rgba(26,18,7,0.04)",
+
     gap: 12,
   },
   cardHeader: {

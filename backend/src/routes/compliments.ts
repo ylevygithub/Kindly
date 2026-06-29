@@ -306,7 +306,7 @@ export function register(app: App, fastify: FastifyInstance) {
   // GET /api/contacts/list - List all contacts except current user
   fastify.get('/api/contacts/list', {
     schema: {
-      description: 'List all available contacts (excluding current user)',
+      description: 'List all available contacts (excluding current user) with INNER JOIN validation',
       tags: ['profiles'],
       response: {
         200: {
@@ -321,7 +321,10 @@ export function register(app: App, fastify: FastifyInstance) {
                   username: { type: 'string' },
                   avatar_emoji: { type: 'string' },
                   phone_hash: { type: 'string', nullable: true },
+                  credits: { type: 'number' },
+                  streak_days: { type: 'number' },
                   is_premium: { type: 'boolean' },
+                  created_at: { type: 'string', format: 'date-time' },
                 },
               },
             },
@@ -336,19 +339,29 @@ export function register(app: App, fastify: FastifyInstance) {
 
     app.logger.info({ userId: session.user.id }, 'Listing contacts');
 
-    // Get all real users (those in the user table) as contacts, excluding current user
+    // INNER JOIN guard: Get all real users (those in the user table) as contacts
+    // This ensures only profiles with matching user records are returned
     const allUsers = await app.db.query.user.findMany({
       columns: { id: true },
     });
     const userIds = allUsers.map(u => u.id);
 
-    // Get profiles for real users only, excluding current user
+    // Get profiles for real users only (INNER JOIN semantics), excluding current user
     const contacts = await app.db.query.profiles.findMany({
       where: and(
         ne(schema.profiles.id, session.user.id),
         inArray(schema.profiles.id, userIds)
       ),
-      columns: { id: true, username: true, avatar_emoji: true, phone_hash: true, is_premium: true },
+      columns: {
+        id: true,
+        username: true,
+        avatar_emoji: true,
+        phone_hash: true,
+        credits: true,
+        streak_days: true,
+        is_premium: true,
+        created_at: true,
+      },
     });
 
     app.logger.info({ userId: session.user.id, contactCount: contacts.length }, 'Contacts listed');

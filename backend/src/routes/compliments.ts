@@ -309,13 +309,18 @@ export function register(app: App, fastify: FastifyInstance) {
       tags: ['profiles'],
       response: {
         200: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              id: { type: 'string' },
-              username: { type: 'string' },
-              avatar_emoji: { type: 'string' },
+          type: 'object',
+          properties: {
+            contacts: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  id: { type: 'string' },
+                  username: { type: 'string' },
+                  avatar_emoji: { type: 'string' },
+                },
+              },
             },
           },
         },
@@ -335,19 +340,20 @@ export function register(app: App, fastify: FastifyInstance) {
     });
 
     app.logger.info({ userId: session.user.id, contactCount: contacts.length }, 'Contacts listed');
-    return contacts;
+    return { contacts };
   });
 
-  // GET /api/compliments/daily-count - Count compliments sent today
+  // GET /api/compliments/daily-count - Get current user's daily send count and reset date
   fastify.get('/api/compliments/daily-count', {
     schema: {
-      description: 'Count compliments sent by current user today (UTC)',
+      description: 'Get current user daily send count and reset date',
       tags: ['compliments'],
       response: {
         200: {
           type: 'object',
           properties: {
-            count: { type: 'number' },
+            daily_sends_count: { type: 'number' },
+            daily_sends_reset_date: { type: 'string', nullable: true },
           },
         },
         401: { type: 'object', properties: { error: { type: 'string' } } },
@@ -357,26 +363,26 @@ export function register(app: App, fastify: FastifyInstance) {
     const session = await requireAuth(request, reply);
     if (!session) return;
 
-    app.logger.info({ userId: session.user.id }, 'Getting daily compliments count');
+    app.logger.info({ userId: session.user.id }, 'Getting daily send count');
 
-    // Get today's date boundaries in UTC
-    const today = new Date().toISOString().slice(0, 10);
-    const todayStart = new Date(`${today}T00:00:00Z`);
-    const todayEnd = new Date(`${today}T23:59:59.999Z`);
-
-    // Count compliments sent by current user today
-    const complimentsToday = await app.db.query.compliments.findMany({
-      where: and(
-        eq(schema.compliments.sender_id, session.user.id),
-        sql`${schema.compliments.created_at}::date = ${today}`
-      ),
-      columns: { id: true },
+    // Get current user's profile
+    const profile = await app.db.query.profiles.findFirst({
+      where: eq(schema.profiles.id, session.user.id),
+      columns: {
+        daily_sends_count: true,
+        daily_sends_reset_date: true,
+      },
     });
 
-    const count = complimentsToday.length;
+    if (!profile) {
+      return reply.status(404).send({ error: 'Profile not found' });
+    }
 
-    app.logger.info({ userId: session.user.id, count }, 'Daily compliments count retrieved');
-    return { count };
+    app.logger.info({ userId: session.user.id, count: profile.daily_sends_count }, 'Daily send count retrieved');
+    return {
+      daily_sends_count: profile.daily_sends_count,
+      daily_sends_reset_date: profile.daily_sends_reset_date,
+    };
   });
 
   // GET /api/compliments - Get received compliments

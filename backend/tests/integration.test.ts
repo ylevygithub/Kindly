@@ -132,15 +132,16 @@ describe("API Integration Tests", () => {
     const res = await authenticatedApi("/api/contacts/list", authToken);
     await expectStatus(res, 200);
     const data = await res.json();
-    expect(Array.isArray(data)).toBe(true);
+    expect(data.contacts).toBeDefined();
+    expect(Array.isArray(data.contacts)).toBe(true);
   });
 
   test("List contacts - returns objects with required fields", async () => {
     const res = await authenticatedApi("/api/contacts/list", authToken);
     await expectStatus(res, 200);
     const data = await res.json();
-    if (data.length > 0) {
-      const contact = data[0];
+    if (data.contacts.length > 0) {
+      const contact = data.contacts[0];
       expect(contact.id).toBeDefined();
       expect(contact.username).toBeDefined();
       expect(contact.avatar_emoji).toBeDefined();
@@ -235,7 +236,7 @@ describe("API Integration Tests", () => {
     const res = await authenticatedApi("/api/compliments/daily-count", authToken);
     await expectStatus(res, 200);
     const data = await res.json();
-    expect(typeof data.count).toBe("number");
+    expect(typeof data.daily_sends_count).toBe("number");
   });
 
   // Compliment Detail Tests (only run if complimentId exists)

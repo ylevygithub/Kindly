@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { eq, and, ne, sql, inArray } from 'drizzle-orm';
+import { eq, and, ne, sql, inArray, desc } from 'drizzle-orm';
 import { user } from '../db/schema/auth-schema.js';
 import * as schema from '../db/schema/schema.js';
 import type { App } from '../index.js';
@@ -320,6 +320,8 @@ export function register(app: App, fastify: FastifyInstance) {
                   id: { type: 'string' },
                   username: { type: 'string' },
                   avatar_emoji: { type: 'string' },
+                  phone_hash: { type: 'string', nullable: true },
+                  is_premium: { type: 'boolean' },
                 },
               },
             },
@@ -346,7 +348,7 @@ export function register(app: App, fastify: FastifyInstance) {
         ne(schema.profiles.id, session.user.id),
         inArray(schema.profiles.id, userIds)
       ),
-      columns: { id: true, username: true, avatar_emoji: true },
+      columns: { id: true, username: true, avatar_emoji: true, phone_hash: true, is_premium: true },
     });
 
     app.logger.info({ userId: session.user.id, contactCount: contacts.length }, 'Contacts listed');
@@ -407,17 +409,13 @@ export function register(app: App, fastify: FastifyInstance) {
                 type: 'object',
                 properties: {
                   id: { type: 'string' },
+                  sender_id: { type: 'string' },
+                  recipient_id: { type: 'string' },
                   text: { type: 'string' },
                   category: { type: 'string' },
                   is_revealed: { type: 'boolean' },
+                  reveal_guess_id: { type: 'string', nullable: true },
                   created_at: { type: 'string', format: 'date-time' },
-                  sender: {
-                    type: 'object',
-                    properties: {
-                      username: { type: 'string' },
-                      avatar_emoji: { type: 'string' },
-                    },
-                  },
                 },
               },
             },
@@ -441,6 +439,7 @@ export function register(app: App, fastify: FastifyInstance) {
 
     const compliments = await app.db.query.compliments.findMany({
       where: eq(schema.compliments.recipient_id, session.user.id),
+      orderBy: desc(schema.compliments.created_at),
     });
 
     const result = [];
@@ -450,23 +449,16 @@ export function register(app: App, fastify: FastifyInstance) {
         continue;
       }
 
-      const item: any = {
+      result.push({
         id: c.id,
+        sender_id: c.sender_id,
+        recipient_id: c.recipient_id,
         text: c.text,
         category: c.category,
         is_revealed: c.is_revealed,
+        reveal_guess_id: c.reveal_guess_id,
         created_at: c.created_at,
-      };
-
-      if (c.is_revealed) {
-        const sender = await app.db.query.profiles.findFirst({
-          where: eq(schema.profiles.id, c.sender_id),
-          columns: { username: true, avatar_emoji: true },
-        });
-        item.sender = sender;
-      }
-
-      result.push(item);
+      });
     }
 
     app.logger.info({ userId: session.user.id, count: result.length }, 'Compliments fetched');

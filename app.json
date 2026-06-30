@@ -13,10 +13,19 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.placeholder.app",
+      "bundleIdentifier": "events148.kapstr.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSContactsUsageDescription": "Kindly utilise tes contacts pour t'aider à inviter tes amis."
+        "NSContactsUsageDescription": "Kindly utilise tes contacts pour t'aider \u00e0 inviter tes amis.",
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
+      },
+      "entitlements": {
+        "aps-environment": "production",
+        "com.apple.security.application-groups": [
+          "group.events148.kapstr.app.onesignal"
+        ]
       }
     },
     "android": {
@@ -31,6 +40,12 @@
       "bundler": "metro"
     },
     "plugins": [
+      [
+        "onesignal-expo-plugin",
+        {
+          "mode": "production"
+        }
+      ],
       "expo-font",
       "expo-router",
       "expo-web-browser",
@@ -43,7 +58,8 @@
     },
     "extra": {
       "router": {},
-      "backendUrl": "https://zauy7bmy2rc7pfput2udb5re8bn4xw88.app.specular.dev"
+      "backendUrl": "https://zauy7bmy2rc7pfput2udb5re8bn4xw88.app.specular.dev",
+      "oneSignalAppId": "c8adfe91-1ac9-4c9c-86ba-0f6170a86044"
     }
   }
 }

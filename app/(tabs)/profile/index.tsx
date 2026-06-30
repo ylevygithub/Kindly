@@ -21,6 +21,7 @@ import { COLORS } from "@/constants/Colors";
 import { authenticatedGet, authenticatedPost } from "@/utils/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { AnimatedPressable } from "@/components/AnimatedPressable";
+import { useNotifications } from "@/contexts/NotificationContext";
 
 interface Profile {
   username: string;
@@ -79,6 +80,7 @@ function SkeletonProfile() {
 
 export default function ProfileScreen() {
   const { user, signOut } = useAuth();
+  const { hasPermission } = useNotifications();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -354,6 +356,20 @@ export default function ProfileScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Réglages</Text>
             <View style={styles.settingsCard}>
+              <AnimatedPressable
+                onPress={() => {
+                  console.log("[Profile] Notifications settings item pressed");
+                  router.push("/notification-preferences");
+                }}
+                style={styles.settingsItem}
+              >
+                <Text style={styles.settingsItemIcon}>{hasPermission ? "🔔" : "🔕"}</Text>
+                <Text style={styles.settingsItemText}>Notifications</Text>
+                <Text style={styles.settingsItemChevron}>›</Text>
+              </AnimatedPressable>
+
+              <View style={styles.settingsDivider} />
+
               <AnimatedPressable
                 onPress={() => {
                   console.log("[Profile] Report problem settings item pressed");

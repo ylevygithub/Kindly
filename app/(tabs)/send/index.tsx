@@ -19,6 +19,7 @@ import { COLORS } from "@/constants/Colors";
 import { authenticatedGet, authenticatedPost } from "@/utils/api";
 import { AnimatedPressable } from "@/components/AnimatedPressable";
 import ConfettiAnimation, { ConfettiRef } from "@/components/ConfettiAnimation";
+import { notifyComplimentRecipient } from "@/utils/notifications";
 
 interface Contact {
   id: string;
@@ -174,6 +175,8 @@ export default function SendScreen() {
       setDailyCount((c) => c + 1);
       // Refresh badge so recipient sees new count
       refreshBadge();
+      // Send push notification to recipient (fire-and-forget)
+      notifyComplimentRecipient(selectedContact.id, selectedCategory);
       // Reset form
       setStep(1);
       setSelectedContact(null);

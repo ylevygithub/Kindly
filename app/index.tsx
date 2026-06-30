@@ -2,6 +2,7 @@ import { Redirect } from "expo-router";
 import { useAuth } from "@/contexts/AuthContext";
 import { View, ActivityIndicator } from "react-native";
 import { COLORS } from "@/constants/Colors";
+import { NotificationBell } from "@/components/NotificationBell";
 
 export default function Index() {
   const { user, loading } = useAuth();
@@ -9,7 +10,9 @@ export default function Index() {
   if (loading) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: COLORS.background }}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+                <NotificationBell />
+        
+<ActivityIndicator size="large" color={COLORS.primary} />
       </View>
     );
   }

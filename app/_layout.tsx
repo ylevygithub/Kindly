@@ -15,6 +15,7 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { BadgeProvider } from "@/contexts/BadgeContext";
+import { NotificationProvider } from "@/contexts/NotificationContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const DevErrorBoundary = __DEV__
@@ -48,6 +49,7 @@ export default function RootLayout() {
       <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
         <SafeAreaProvider>
           <AuthProvider>
+        <NotificationProvider>
             <BadgeProvider>
             <GestureHandlerRootView style={{ flex: 1 }}>
               <Stack>
@@ -58,11 +60,13 @@ export default function RootLayout() {
                 <Stack.Screen name="shop" options={{ headerShown: false }} />
                 <Stack.Screen name="auth-popup" options={{ headerShown: false }} />
                 <Stack.Screen name="auth-callback" options={{ headerShown: false }} />
+                <Stack.Screen name="notification-preferences" options={{ headerShown: false }} />
               </Stack>
               <SystemBars style="auto" />
             </GestureHandlerRootView>
             </BadgeProvider>
-          </AuthProvider>
+          </NotificationProvider>
+        </AuthProvider>
         </SafeAreaProvider>
       </ThemeProvider>
     </DevErrorBoundary>

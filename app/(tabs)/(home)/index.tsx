@@ -17,6 +17,7 @@ import { authenticatedGet } from "@/utils/api";
 import { useAuth } from "@/contexts/AuthContext";
 import ConfettiAnimation, { ConfettiRef } from "@/components/ConfettiAnimation";
 import { AnimatedPressable } from "@/components/AnimatedPressable";
+import { NotificationBell } from "@/components/NotificationBell";
 
 interface Compliment {
   id: string;
@@ -215,7 +216,9 @@ export default function HomeScreen() {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Text style={styles.headerTitle}>Kindly 💛</Text>
-        </View>
+                <NotificationBell />
+        
+</View>
         {totalCount > 0 && (
           <View style={styles.countBadge}>
             <Text style={styles.countBadgeText}>{totalCount}</Text>

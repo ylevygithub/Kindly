@@ -16,6 +16,7 @@ import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { COLORS } from "@/constants/Colors";
 import { apiPost } from "@/utils/api";
+import { setOnboardingComplete } from "@/utils/onboardingStorage";
 import { AnimatedPressable } from "@/components/AnimatedPressable";
 
 const AVATAR_EMOJIS = [
@@ -65,7 +66,9 @@ export default function OnboardingScreen() {
         username,
         avatar_emoji: selectedAvatar,
       });
-      console.log("[Onboarding] Profile setup successful, redirecting to home");
+      console.log("[Onboarding] Profile setup successful, marking onboarding complete");
+      await setOnboardingComplete();
+      console.log("[Onboarding] Onboarding marked complete, redirecting to paywall");
       router.replace("/paywall");
     } catch (err: any) {
       console.log("[Onboarding] Profile setup error:", err?.message);

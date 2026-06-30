@@ -727,6 +727,60 @@ describe("API Integration Tests", () => {
     await expectStatus(res, 400);
   });
 
+  // Notifications Tests
+  test("Send push notification for compliment", async () => {
+    const res = await authenticatedApi("/api/notifications/compliment", authToken, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        recipient_id: secondUserId,
+        category: "Personnalité",
+      }),
+    });
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(data.success).toBe(true);
+  });
+
+  test("Send push notification - with all valid categories", async () => {
+    const categories = ["Personnalité", "Look", "Talent", "Humour", "Autre"];
+    for (const category of categories) {
+      const res = await authenticatedApi("/api/notifications/compliment", authToken, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recipient_id: secondUserId,
+          category: category,
+        }),
+      });
+      await expectStatus(res, 200);
+      const data = await res.json();
+      expect(data.success).toBe(true);
+    }
+  });
+
+  test("Send push notification - missing recipient_id (validation error)", async () => {
+    const res = await authenticatedApi("/api/notifications/compliment", authToken, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        category: "Personnalité",
+      }),
+    });
+    await expectStatus(res, 400);
+  });
+
+  test("Send push notification - missing category (validation error)", async () => {
+    const res = await authenticatedApi("/api/notifications/compliment", authToken, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        recipient_id: secondUserId,
+      }),
+    });
+    await expectStatus(res, 400);
+  });
+
   // Support Tests
   test("Send support/contact email", async () => {
     const res = await authenticatedApi("/api/support/contact", authToken, {
@@ -1024,5 +1078,19 @@ describe("API Integration Tests", () => {
       "/api/compliments/00000000-0000-0000-0000-000000000000"
     );
     await expectStatus(res, 401);
+  });
+
+  test("Send push notification without authentication (200)", async () => {
+    const res = await api("/api/notifications/compliment", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        recipient_id: secondUserId,
+        category: "Personnalité",
+      }),
+    });
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(data.success).toBe(true);
   });
 });

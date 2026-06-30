@@ -5,6 +5,7 @@ import * as appSchema from './db/schema/schema.js';
 import * as authSchema from './db/schema/auth-schema.js';
 import { register as registerComplimentsRoutes } from './routes/compliments.js';
 import { register as registerSupportRoutes } from './routes/support.js';
+import { register as registerNotificationsRoutes } from './routes/notifications.js';
 
 // Combine application and auth schemas
 const schema = { ...appSchema, ...authSchema };
@@ -34,6 +35,7 @@ app.withAuth({
 // Register routes
 registerComplimentsRoutes(app, app.fastify);
 registerSupportRoutes(app, app.fastify);
+registerNotificationsRoutes(app, app.fastify);
 
 await app.run();
 app.logger.info('Application running');

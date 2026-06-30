@@ -387,28 +387,35 @@ export default function SendScreen() {
             {suggestionsLoading ? (
               <ActivityIndicator color={COLORS.primary} />
             ) : (
-              <View style={styles.suggestionsGrid}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.suggestionsScroll}
+                contentContainerStyle={styles.suggestionsScrollContent}
+              >
                 {suggestions.map((s, idx) => {
                   const emoji = getDefaultEmoji(selectedCategory, idx);
                   const displayText = s.text;
                   const isSelected = selectedSuggestion === (displayText || emoji) && !isCustom;
+                  const hasText = !!displayText;
                   return (
                     <AnimatedPressable
                       key={s.id}
                       onPress={() => handleSelectSuggestion(displayText || emoji)}
                       style={[styles.suggestionCard, isSelected && styles.suggestionCardSelected]}
                     >
-                      {displayText ? (
+                      <Text style={hasText ? styles.suggestionEmojiSmall : styles.suggestionEmojiLarge}>
+                        {emoji}
+                      </Text>
+                      {hasText && (
                         <Text style={[styles.suggestionText, isSelected && styles.suggestionTextSelected]}>
                           {displayText}
                         </Text>
-                      ) : (
-                        <Text style={styles.suggestionEmoji}>{emoji}</Text>
                       )}
                     </AnimatedPressable>
                   );
                 })}
-              </View>
+              </ScrollView>
             )}
 
             {/* Custom text toggle */}
@@ -693,35 +700,46 @@ const styles = StyleSheet.create({
   categoryPillTextSelected: {
     color: COLORS.text,
   },
-  suggestionsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
+  suggestionsScroll: {
+    marginHorizontal: -16,
+  },
+  suggestionsScrollContent: {
+    paddingHorizontal: 16,
+    gap: 10,
   },
   suggestionCard: {
     backgroundColor: COLORS.surface,
-    borderRadius: 12,
-    padding: 12,
+    borderRadius: 16,
+    padding: 16,
     borderWidth: 1.5,
     borderColor: COLORS.border,
-    width: "48%",
+    width: 160,
+    minHeight: 100,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
   },
   suggestionCardSelected: {
     backgroundColor: COLORS.primaryMuted,
     borderColor: COLORS.primary,
   },
+  suggestionEmojiSmall: {
+    fontSize: 36,
+    textAlign: "center",
+  },
+  suggestionEmojiLarge: {
+    fontSize: 48,
+    textAlign: "center",
+  },
   suggestionText: {
     fontSize: 13,
     color: COLORS.textSecondary,
     lineHeight: 18,
+    textAlign: "center",
   },
   suggestionTextSelected: {
     color: COLORS.text,
     fontWeight: "600",
-  },
-  suggestionEmoji: {
-    fontSize: 32,
-    textAlign: "center",
   },
   customToggle: {
     alignSelf: "flex-start",

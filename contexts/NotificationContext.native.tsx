@@ -23,8 +23,13 @@ import React, {
   useCallback,
   ReactNode,
 } from "react";
-import { Platform } from "react-native";
+import { Platform, TurboModuleRegistry } from "react-native";
 import Constants from "expo-constants";
+
+// Check if OneSignal native module is available BEFORE any require.
+// TurboModuleRegistry.getEnforcing throws a synchronous native error that
+// bypasses JS try/catch, so we use .get() (non-enforcing) as the guard.
+const isOneSignalAvailable = !!TurboModuleRegistry.get("OneSignal");
 
 // Import auth hook for user targeting (validated at setup time)
 import { useAuth } from "@/contexts/AuthContext";
@@ -91,6 +96,12 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
       return;
     }
 
+    if (!isOneSignalAvailable) {
+      console.warn("[OneSignal] Native module not available (TurboModuleRegistry check failed). Skipping initialization.");
+      setLoading(false);
+      return;
+    }
+
     let OSModule: any;
     try {
       OSModule = require("react-native-onesignal");
@@ -149,6 +160,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
   // Sync OneSignal external user ID with authenticated user
   useEffect(() => {
     if (isWeb || !ONESIGNAL_APP_ID) return;
+    if (!isOneSignalAvailable) return;
 
     let OSModule: any;
     try {
@@ -174,6 +186,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
 
   const requestPermission = useCallback(async (): Promise<boolean> => {
     if (isWeb) return false;
+    if (!isOneSignalAvailable) return false;
 
     let OSModule: any;
     try {
@@ -196,6 +209,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
 
   const sendTag = useCallback((key: string, value: string) => {
     if (isWeb) return;
+    if (!isOneSignalAvailable) return;
     let OSModule: any;
     try {
       OSModule = require("react-native-onesignal");
@@ -212,6 +226,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
 
   const deleteTag = useCallback((key: string) => {
     if (isWeb) return;
+    if (!isOneSignalAvailable) return;
     let OSModule: any;
     try {
       OSModule = require("react-native-onesignal");

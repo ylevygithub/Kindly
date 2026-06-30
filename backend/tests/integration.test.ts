@@ -710,6 +710,20 @@ describe("API Integration Tests", () => {
     await expectStatus(res, 400);
   });
 
+  // Users/Recent Tests
+  test("Get users who recently sent compliments", async () => {
+    const res = await authenticatedApi("/api/users/recent", authToken);
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(Array.isArray(data)).toBe(true);
+    if (data.length > 0) {
+      const user = data[0];
+      expect(user.id).toBeDefined();
+      expect(user.username).toBeDefined();
+      expect(user.avatar_emoji).toBeDefined();
+    }
+  });
+
   // Invites Tests
   test("Track invite link click", async () => {
     const res = await api("/api/invite/00000000-0000-0000-0000-000000000000/track", {
@@ -1029,6 +1043,11 @@ describe("API Integration Tests", () => {
         blocked_id: "some-user-id",
       }),
     });
+    await expectStatus(res, 401);
+  });
+
+  test("Get users who recently sent compliments without authentication (401)", async () => {
+    const res = await api("/api/users/recent");
     await expectStatus(res, 401);
   });
 

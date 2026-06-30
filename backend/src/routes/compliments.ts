@@ -445,6 +445,71 @@ export function register(app: App, fastify: FastifyInstance) {
     return { count };
   });
 
+  // GET /api/users/recent - Get recent senders for block modal
+  fastify.get('/api/users/recent', {
+    schema: {
+      description: 'Get distinct profiles of users who recently sent compliments to current user',
+      tags: ['users'],
+      response: {
+        200: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              username: { type: 'string' },
+              avatar_emoji: { type: 'string' },
+            },
+          },
+        },
+        401: { type: 'object', properties: { error: { type: 'string' } } },
+      },
+    },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const session = await requireAuth(request, reply);
+    if (!session) return;
+
+    const userId = session.user.id;
+    app.logger.info({ userId }, `[RecentUsers] Fetching recent senders for user: ${userId}`);
+
+    // Get all compliments sent to this user, ordered by most recent
+    const compliments = await app.db.query.compliments.findMany({
+      where: eq(schema.compliments.recipient_id, userId),
+      columns: { sender_id: true, created_at: true },
+      orderBy: desc(schema.compliments.created_at),
+    });
+
+    // Get distinct sender IDs in order of most recent
+    const seen = new Set<string>();
+    const distinctSenderIds: string[] = [];
+    for (const c of compliments) {
+      if (!seen.has(c.sender_id)) {
+        seen.add(c.sender_id);
+        distinctSenderIds.push(c.sender_id);
+      }
+      if (distinctSenderIds.length >= 20) break;
+    }
+
+    // Get profiles for these senders
+    const recentProfiles = await app.db.query.profiles.findMany({
+      where: inArray(schema.profiles.id, distinctSenderIds),
+      columns: {
+        id: true,
+        username: true,
+        avatar_emoji: true,
+      },
+    });
+
+    // Maintain order from distinctSenderIds
+    const profileMap = new Map(recentProfiles.map(p => [p.id, p]));
+    const orderedProfiles = distinctSenderIds
+      .map(id => profileMap.get(id))
+      .filter((p): p is typeof recentProfiles[0] => p !== undefined);
+
+    app.logger.info({ userId, count: orderedProfiles.length }, '[RecentUsers] Recent senders fetched');
+    return orderedProfiles;
+  });
+
   // GET /api/compliments - Get received compliments
   fastify.get('/api/compliments', {
     schema: {

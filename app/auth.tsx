@@ -15,6 +15,7 @@ import Svg, { Path } from "react-native-svg";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiGet } from "@/utils/api";
 import { COLORS } from "@/constants/Colors";
+import { t } from "@/utils/i18n";
 
 function AppleLogo({ size = 20, color = "#FFFFFF" }: { size?: number; color?: string }) {
   return (
@@ -73,7 +74,7 @@ export default function AuthScreen() {
     } catch (err: any) {
       console.log("[Auth] Apple sign-in error:", err?.message);
       if (!String(err?.message).includes("cancel")) {
-        Alert.alert("Erreur", "La connexion avec Apple a échoué. Réessaie.");
+        Alert.alert(t('error_generic'), "La connexion avec Apple a échoué. Réessaie.");
       }
     } finally {
       setLoadingApple(false);
@@ -87,7 +88,7 @@ export default function AuthScreen() {
       await signInWithGoogle();
     } catch (err: any) {
       console.log("[Auth] Google sign-in error:", err?.message);
-      Alert.alert("Erreur", "La connexion avec Google a échoué. Réessaie.");
+      Alert.alert(t('error_generic'), "La connexion avec Google a échoué. Réessaie.");
     } finally {
       setLoadingGoogle(false);
     }
@@ -110,7 +111,7 @@ export default function AuthScreen() {
             <Text style={styles.logoEmoji}>💛</Text>
           </View>
           <Text style={styles.appName}>Kindly</Text>
-          <Text style={styles.tagline}>Dis ce que tu penses, anonymement 💬</Text>
+          <Text style={styles.tagline}>{t('auth_subtitle')}</Text>
         </View>
 
         {/* Decorative cards */}
@@ -138,7 +139,7 @@ export default function AuthScreen() {
             ) : (
               <>
                 <AppleLogo size={20} color="#FFFFFF" />
-                <Text style={styles.appleButtonText}>Continuer avec Apple</Text>
+                <Text style={styles.appleButtonText}>{t('auth_continueApple')}</Text>
               </>
             )}
           </TouchableOpacity>
@@ -154,7 +155,7 @@ export default function AuthScreen() {
             ) : (
               <>
                 <GoogleLogo size={20} />
-                <Text style={styles.googleButtonText}>Continuer avec Google</Text>
+                <Text style={styles.googleButtonText}>{t('auth_continueGoogle')}</Text>
               </>
             )}
           </TouchableOpacity>
@@ -162,7 +163,13 @@ export default function AuthScreen() {
 
         {/* Legal */}
         <Text style={styles.legalText}>
-          En continuant, tu acceptes nos CGU et notre politique de confidentialité
+          {t('auth_terms')}
+          {' '}
+          {t('auth_termsLink')}
+          {' '}
+          {t('auth_and')}
+          {' '}
+          {t('auth_privacyLink')}
         </Text>
       </ScrollView>
     </View>

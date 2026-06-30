@@ -23,6 +23,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { AnimatedPressable } from "@/components/AnimatedPressable";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { useSubscription } from "@/contexts/SubscriptionContext";
+import { t, isFrench } from "@/utils/i18n";
 
 interface Profile {
   username: string;
@@ -162,7 +163,7 @@ export default function ProfileScreen() {
 
   const handleSendSupport = async () => {
     if (!supportSubject.trim() || !supportMessage.trim()) {
-      setSupportError("Merci de remplir tous les champs.");
+      setSupportError(isFrench ? "Merci de remplir tous les champs." : "Please fill in all fields.");
       return;
     }
     console.log("[Profile] Sending support message, subject:", supportSubject);
@@ -181,7 +182,7 @@ export default function ProfileScreen() {
       }, 2500);
     } catch (err) {
       console.log("[Profile] Support send error:", err);
-      setSupportError("Erreur lors de l'envoi, réessaie.");
+      setSupportError(isFrench ? "Erreur lors de l'envoi, réessaie." : "Error sending message, please try again.");
     } finally {
       setSupportSending(false);
     }
@@ -293,7 +294,7 @@ export default function ProfileScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Profil 👤</Text>
+        <Text style={styles.headerTitle}>{t('profile_title')} 👤</Text>
       </View>
 
       {loading ? (
@@ -313,7 +314,7 @@ export default function ProfileScreen() {
                 <Text style={styles.username}>{profile?.username || user?.name || "Utilisateur"}</Text>
                 {isPremium && (
                   <View style={styles.premiumBadge}>
-                    <Text style={styles.premiumBadgeText}>✨ Premium</Text>
+                    <Text style={styles.premiumBadgeText}>{t('profile_premium')}</Text>
                   </View>
                 )}
               </View>
@@ -321,7 +322,7 @@ export default function ProfileScreen() {
               {/* Credits & streak pills */}
               <View style={styles.pillRow}>
                 <View style={styles.pill}>
-                  <Text style={styles.pillText}>💛 {credits} crédits</Text>
+                  <Text style={styles.pillText}>💛 {credits} {t('profile_credits')}</Text>
                 </View>
                 <View style={styles.pill}>
                   <Text style={styles.pillText}>
@@ -337,14 +338,14 @@ export default function ProfileScreen() {
             onPress={handleShareProfile}
             style={styles.shareButton}
           >
-            <Text style={styles.shareButtonText}>Partager mon profil 🔗</Text>
+            <Text style={styles.shareButtonText}>{isFrench ? "Partager mon profil 🔗" : "Share my profile 🔗"}</Text>
           </AnimatedPressable>
 
           {/* Stats row */}
           <View style={styles.statsRow}>
             <View style={styles.statCard}>
               <Text style={styles.statValue}>{totalReceived}</Text>
-              <Text style={styles.statLabel}>Reçus</Text>
+              <Text style={styles.statLabel}>{isFrench ? "Reçus" : "Received"}</Text>
             </View>
             <View style={[styles.statCard, styles.statCardMiddle]}>
               <View style={styles.streakRow}>
@@ -355,7 +356,7 @@ export default function ProfileScreen() {
             </View>
             <View style={styles.statCard}>
               <Text style={styles.statValue}>{credits}</Text>
-              <Text style={styles.statLabel}>Crédits 💛</Text>
+              <Text style={styles.statLabel}>{isFrench ? "Crédits 💛" : "Credits 💛"}</Text>
             </View>
           </View>
 
@@ -372,10 +373,10 @@ export default function ProfileScreen() {
                 <View style={styles.plusCardContent}>
                   <Text style={styles.plusCardTitle}>✨ Kindly Plus</Text>
                   <Text style={styles.plusCardSubtitle}>
-                    Envois illimités, reveals gratuits et plus encore
+                    {isFrench ? "Envois illimités, reveals gratuits et plus encore" : "Unlimited sends, free reveals and more"}
                   </Text>
                   <View style={styles.plusCardButton}>
-                    <Text style={styles.plusCardButtonText}>Essayer Kindly Plus →</Text>
+                    <Text style={styles.plusCardButtonText}>{isFrench ? "Essayer Kindly Plus →" : "Try Kindly Plus →"}</Text>
                   </View>
                 </View>
               </View>
@@ -384,11 +385,11 @@ export default function ProfileScreen() {
 
           {/* Credits section */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Crédits 💛</Text>
+            <Text style={styles.sectionTitle}>{isFrench ? "Crédits 💛" : "Credits 💛"}</Text>
             <View style={styles.creditsCard}>
               <View style={styles.creditsInfo}>
-                <Text style={styles.creditsValue}>{credits} crédits</Text>
-                <Text style={styles.creditsSubtext}>Utilisés pour révéler l'expéditeur</Text>
+                <Text style={styles.creditsValue}>{credits} {t('profile_credits')}</Text>
+                <Text style={styles.creditsSubtext}>{isFrench ? "Utilisés pour révéler l'expéditeur" : "Used to reveal the sender"}</Text>
               </View>
               <AnimatedPressable
                 onPress={() => {
@@ -397,14 +398,14 @@ export default function ProfileScreen() {
                 }}
                 style={styles.buyCreditsButton}
               >
-                <Text style={styles.buyCreditsText}>Acheter</Text>
+                <Text style={styles.buyCreditsText}>{t('shop_buy')}</Text>
               </AnimatedPressable>
             </View>
           </View>
 
           {/* Settings section */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Réglages</Text>
+            <Text style={styles.sectionTitle}>{isFrench ? "Réglages" : "Settings"}</Text>
             <View style={styles.settingsCard}>
               <AnimatedPressable
                 onPress={() => {
@@ -414,7 +415,7 @@ export default function ProfileScreen() {
                 style={styles.settingsItem}
               >
                 <Text style={styles.settingsItemIcon}>💛</Text>
-                <Text style={styles.settingsItemText}>Boutique</Text>
+                <Text style={styles.settingsItemText}>{isFrench ? "Boutique" : "Shop"}</Text>
                 <Text style={styles.settingsItemChevron}>›</Text>
               </AnimatedPressable>
 
@@ -428,7 +429,7 @@ export default function ProfileScreen() {
                 style={styles.settingsItem}
               >
                 <Text style={styles.settingsItemIcon}>{hasPermission ? "🔔" : "🔕"}</Text>
-                <Text style={styles.settingsItemText}>Notifications</Text>
+                <Text style={styles.settingsItemText}>{t('profile_notifications')}</Text>
                 <Text style={styles.settingsItemChevron}>›</Text>
               </AnimatedPressable>
 
@@ -443,7 +444,7 @@ export default function ProfileScreen() {
                 style={styles.settingsItem}
               >
                 <Text style={styles.settingsItemIcon}>🚫</Text>
-                <Text style={styles.settingsItemText}>Bloquer un utilisateur</Text>
+                <Text style={styles.settingsItemText}>{isFrench ? "Bloquer un utilisateur" : "Block a user"}</Text>
                 <Text style={styles.settingsItemChevron}>›</Text>
               </AnimatedPressable>
 
@@ -457,7 +458,7 @@ export default function ProfileScreen() {
                 style={styles.settingsItem}
               >
                 <Text style={styles.settingsItemIcon}>📄</Text>
-                <Text style={styles.settingsItemText}>CGU et confidentialité</Text>
+                <Text style={styles.settingsItemText}>{isFrench ? "CGU et confidentialité" : "Terms & Privacy"}</Text>
                 <Text style={styles.settingsItemChevron}>›</Text>
               </AnimatedPressable>
             </View>
@@ -468,7 +469,7 @@ export default function ProfileScreen() {
             onPress={handleOpenSupportModal}
             style={styles.supportButton}
           >
-            <Text style={styles.supportButtonText}>Signaler un problème ✉️</Text>
+            <Text style={styles.supportButtonText}>{isFrench ? "Signaler un problème ✉️" : "Report an issue ✉️"}</Text>
           </AnimatedPressable>
 
           {/* Sign out */}
@@ -480,7 +481,7 @@ export default function ProfileScreen() {
             {signingOut ? (
               <ActivityIndicator color={COLORS.danger} size="small" />
             ) : (
-              <Text style={styles.signOutText}>Se déconnecter</Text>
+              <Text style={styles.signOutText}>{t('profile_logout')}</Text>
             )}
           </AnimatedPressable>
 
@@ -493,7 +494,7 @@ export default function ProfileScreen() {
             {deletingAccount ? (
               <ActivityIndicator color={COLORS.danger} size="small" />
             ) : (
-              <Text style={styles.deleteAccountText}>Supprimer mon compte</Text>
+              <Text style={styles.deleteAccountText}>{isFrench ? "Supprimer mon compte" : "Delete my account"}</Text>
             )}
           </AnimatedPressable>
         </ScrollView>

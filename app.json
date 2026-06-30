@@ -46,6 +46,7 @@
           "mode": "production"
         }
       ],
+      ["react-native-purchases"],
       "expo-font",
       "expo-router",
       "expo-web-browser",
@@ -59,7 +60,10 @@
     "extra": {
       "router": {},
       "backendUrl": "https://zauy7bmy2rc7pfput2udb5re8bn4xw88.app.specular.dev",
-      "oneSignalAppId": "c8adfe91-1ac9-4c9c-86ba-0f6170a86044"
+      "oneSignalAppId": "c8adfe91-1ac9-4c9c-86ba-0f6170a86044",
+      "revenueCatApiKeyIos": "appl_REPLACE_WITH_YOUR_IOS_KEY",
+      "revenueCatApiKeyAndroid": "goog_REPLACE_WITH_YOUR_ANDROID_KEY",
+      "revenueCatEntitlementId": "pro"
     }
   }
 }

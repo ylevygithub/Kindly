@@ -18,6 +18,7 @@ import { COLORS } from "@/constants/Colors";
 import { apiPost } from "@/utils/api";
 import { setOnboardingComplete } from "@/utils/onboardingStorage";
 import { AnimatedPressable } from "@/components/AnimatedPressable";
+import { t, isFrench } from "@/utils/i18n";
 
 const AVATAR_EMOJIS = [
   "😊", "🌟", "🦋", "🌸", "✨", "🎉", "🌈", "💫", "🦄", "🍀",
@@ -42,11 +43,11 @@ export default function OnboardingScreen() {
     if (value.length === 0) {
       setUsernameError("");
     } else if (value.length < 3) {
-      setUsernameError("Au moins 3 caractères");
+      setUsernameError(isFrench ? "Au moins 3 caractères" : "At least 3 characters");
     } else if (value.length > 20) {
-      setUsernameError("Maximum 20 caractères");
+      setUsernameError(isFrench ? "Maximum 20 caractères" : "Maximum 20 characters");
     } else if (!/^[a-zA-Z0-9_]+$/.test(value)) {
-      setUsernameError("Lettres, chiffres et _ uniquement");
+      setUsernameError(isFrench ? "Lettres, chiffres et _ uniquement" : "Letters, numbers and _ only");
     } else {
       setUsernameError("");
     }
@@ -68,14 +69,14 @@ export default function OnboardingScreen() {
       });
       console.log("[Onboarding] Profile setup successful, marking onboarding complete");
       await setOnboardingComplete();
-      console.log("[Onboarding] Onboarding marked complete, redirecting to paywall");
-      router.replace("/paywall");
+      console.log("[Onboarding] Onboarding marked complete, redirecting to home");
+      router.replace("/(tabs)/(home)");
     } catch (err: any) {
       console.log("[Onboarding] Profile setup error:", err?.message);
       if (String(err?.message).includes("409") || String(err?.message).includes("username")) {
-        setUsernameError("Ce pseudo est déjà pris, essaie-en un autre");
+        setUsernameError(isFrench ? "Ce pseudo est déjà pris, essaie-en un autre" : "This username is already taken, try another one");
       } else {
-        Alert.alert("Erreur", "Impossible de créer ton profil. Réessaie.");
+        Alert.alert(t('error_generic'), isFrench ? "Impossible de créer ton profil. Réessaie." : "Unable to create your profile. Please try again.");
       }
     } finally {
       setLoading(false);
@@ -97,15 +98,15 @@ export default function OnboardingScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>Crée ton profil Kindly 🌟</Text>
+          <Text style={styles.title}>{t('onboarding_title')} 🌟</Text>
           <Text style={styles.subtitle}>
-            Choisis un pseudo et un avatar pour commencer à envoyer des compliments !
+            {isFrench ? "Choisis un pseudo et un avatar pour commencer à envoyer des compliments !" : "Choose a username and avatar to start sending compliments!"}
           </Text>
         </View>
 
         {/* Avatar selector */}
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Ton avatar</Text>
+          <Text style={styles.sectionLabel}>{t('onboarding_emojiLabel')}</Text>
           <View style={styles.avatarGrid}>
             {AVATAR_EMOJIS.map((emoji) => {
               const isSelected = selectedAvatar === emoji;
@@ -130,14 +131,14 @@ export default function OnboardingScreen() {
 
         {/* Username input */}
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Ton pseudo</Text>
+          <Text style={styles.sectionLabel}>{t('onboarding_usernameLabel')}</Text>
           <TextInput
             style={[
               styles.input,
               usernameError ? styles.inputError : null,
               isUsernameValid && username.length > 0 ? styles.inputValid : null,
             ]}
-            placeholder="ton_pseudo"
+            placeholder={t('onboarding_usernamePlaceholder')}
             placeholderTextColor={COLORS.textTertiary}
             value={username}
             onChangeText={handleUsernameChange}
@@ -149,9 +150,9 @@ export default function OnboardingScreen() {
           {usernameError ? (
             <Text style={styles.errorText}>{usernameError}</Text>
           ) : isUsernameValid && username.length > 0 ? (
-            <Text style={styles.successText}>✓ Pseudo disponible !</Text>
+            <Text style={styles.successText}>{isFrench ? "✓ Pseudo disponible !" : "✓ Username available!"}</Text>
           ) : (
-            <Text style={styles.hintText}>3-20 caractères, lettres, chiffres et _</Text>
+            <Text style={styles.hintText}>{isFrench ? "3-20 caractères, lettres, chiffres et _" : "3-20 characters, letters, numbers and _"}</Text>
           )}
         </View>
 
@@ -161,7 +162,7 @@ export default function OnboardingScreen() {
             <Text style={styles.previewAvatar}>{selectedAvatar}</Text>
             <View>
               <Text style={styles.previewUsername}>{username || "ton_pseudo"}</Text>
-              <Text style={styles.previewLabel}>Aperçu de ton profil</Text>
+              <Text style={styles.previewLabel}>{isFrench ? "Aperçu de ton profil" : "Profile preview"}</Text>
             </View>
           </View>
         )}
@@ -178,7 +179,7 @@ export default function OnboardingScreen() {
             {accepted && <Text style={styles.checkmark}>✓</Text>}
           </View>
           <Text style={styles.checkboxText}>
-            <Text style={{ color: COLORS.textSecondary }}>{"J'accepte les "}</Text>
+            <Text style={{ color: COLORS.textSecondary }}>{t('onboarding_terms') + ' '}</Text>
             <Text
               style={styles.cguLink}
               onPress={() => {
@@ -186,9 +187,9 @@ export default function OnboardingScreen() {
                 Linking.openURL("https://kindly.app/cgu");
               }}
             >
-              {"CGU"}
+              {t('onboarding_termsLink')}
             </Text>
-            <Text style={{ color: COLORS.textSecondary }}>{" et je m'engage à rester bienveillant(e). Aucun contenu insultant ou harcelant n'est toléré."}</Text>
+            <Text style={{ color: COLORS.textSecondary }}>{isFrench ? " et je m'engage à rester bienveillant(e). Aucun contenu insultant ou harcelant n'est toléré." : " and I commit to staying kind. No insulting or harassing content is tolerated."}</Text>
           </Text>
         </AnimatedPressable>
 
@@ -201,7 +202,7 @@ export default function OnboardingScreen() {
           {loading ? (
             <ActivityIndicator color="#FFFFFF" size="small" />
           ) : (
-            <Text style={styles.submitButtonText}>Commencer 💛</Text>
+            <Text style={styles.submitButtonText}>{t('onboarding_submit')} 💛</Text>
           )}
         </AnimatedPressable>
       </ScrollView>

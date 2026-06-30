@@ -24,6 +24,7 @@ import { useRouter } from "expo-router";
 import { PurchasesPackage } from "react-native-purchases";
 
 import { useSubscription } from "@/contexts/SubscriptionContext";
+import { t } from "@/utils/i18n";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -90,16 +91,19 @@ export default function PaywallScreen() {
   // Handle purchase
   const handlePurchase = async () => {
     if (!selectedPackage) return;
+    console.log("[Paywall] Purchase button pressed, package:", selectedPackage.identifier);
 
     try {
       setPurchasing(true);
       const success = await purchasePackage(selectedPackage);
+      console.log("[Paywall] Purchase result:", success);
       if (success) {
         Alert.alert("Welcome!", "Thank you for your purchase.", [
           { text: "OK", onPress: () => router.replace("/(tabs)/(home)") },
         ]);
       }
     } catch (error: any) {
+      console.log("[Paywall] Purchase error:", error?.message);
       Alert.alert("Purchase Failed", error.message || "Please try again.");
     } finally {
       setPurchasing(false);
@@ -108,9 +112,11 @@ export default function PaywallScreen() {
 
   // Handle restore
   const handleRestore = async () => {
+    console.log("[Paywall] Restore purchases pressed");
     try {
       setRestoring(true);
       const restored = await restorePurchases();
+      console.log("[Paywall] Restore result:", restored);
       if (restored) {
         Alert.alert("Restored!", "Your subscription has been restored.", [
           { text: "OK", onPress: () => router.replace("/(tabs)/(home)") },
@@ -122,6 +128,7 @@ export default function PaywallScreen() {
         );
       }
     } catch (error: any) {
+      console.log("[Paywall] Restore error:", error?.message);
       Alert.alert("Restore Failed", error.message || "Please try again.");
     } finally {
       setRestoring(false);
@@ -129,6 +136,7 @@ export default function PaywallScreen() {
   };
 
   const handleClose = () => {
+    console.log("[Paywall] Maybe later / close pressed");
     router.replace("/(tabs)/(home)");
   };
 
@@ -201,8 +209,8 @@ export default function PaywallScreen() {
               </Text>
 
               {/* Features card */}
-              <View style={styles.featuresCard}>
-                <Text style={styles.featuresCardTitle}>Unlocked Features</Text>
+              <View style={styles.subscribedFeaturesCard}>
+                <Text style={styles.subscribedFeaturesCardTitle}>Unlocked Features</Text>
                 {FEATURES.slice(0, 3).map((feature, index) => (
                   <View key={index} style={styles.featureCheckRow}>
                     <View style={styles.checkCircle}>
@@ -252,7 +260,7 @@ export default function PaywallScreen() {
           <SafeAreaView edges={["top", "bottom"]} style={styles.safeArea}>
             <View style={styles.centeredContainer}>
               <ActivityIndicator size="large" color="#fff" />
-              <Text style={styles.loadingText}>Loading...</Text>
+              <Text style={styles.loadingText}>{t('paywall_loading')}</Text>
             </View>
           </SafeAreaView>
         </LinearGradient>
@@ -274,6 +282,11 @@ export default function PaywallScreen() {
         <View style={[styles.floatingOrb, styles.orb3]} />
 
         <SafeAreaView edges={["top", "bottom"]} style={styles.safeArea}>
+          {/* Close / skip button */}
+          <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
+            <Text style={styles.closeButtonText}>✕</Text>
+          </TouchableOpacity>
+
           <ScrollView
             style={styles.scrollView}
             contentContainerStyle={styles.scrollContent}
@@ -285,10 +298,8 @@ export default function PaywallScreen() {
               <View style={styles.premiumBadge}>
                 <Text style={styles.premiumBadgeText}>PREMIUM</Text>
               </View>
-              <Text style={styles.title}>Upgrade to Premium</Text>
-              <Text style={styles.subtitle}>
-                Unlock all features and get the most out of the app
-              </Text>
+              <Text style={styles.title}>{t('paywall_title')}</Text>
+              <Text style={styles.subtitle}>{t('paywall_subtitle')}</Text>
             </View>
 
             {/* Features List - Glass Card */}
@@ -368,7 +379,7 @@ export default function PaywallScreen() {
                       router.replace("/(tabs)/(home)");
                     }}
                   >
-                    <Text style={styles.devMockButtonText}>Dev: Simulate Purchase</Text>
+                    <Text style={styles.devMockButtonText}>{t('paywall_devSimulate')}</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -410,13 +421,16 @@ export default function PaywallScreen() {
                     <ActivityIndicator size="small" color="#fff" />
                   ) : (
                     <Text style={styles.secondaryButtonText}>
-                      Restore Purchases
+                      {t('paywall_restore')}
                     </Text>
                   )}
                 </TouchableOpacity>
                 <Text style={styles.legalText}>
                   Preview mode — purchases available in the mobile app
                 </Text>
+                <TouchableOpacity style={styles.maybeLaterButton} onPress={handleClose}>
+                  <Text style={styles.maybeLaterText}>{t('paywall_skip')}</Text>
+                </TouchableOpacity>
               </>
             ) : (
               <>
@@ -451,7 +465,7 @@ export default function PaywallScreen() {
                   {restoring ? (
                     <ActivityIndicator size="small" color="#fff" />
                   ) : (
-                    <Text style={styles.secondaryButtonText}>Restore Purchases</Text>
+                    <Text style={styles.secondaryButtonText}>{t('paywall_restore')}</Text>
                   )}
                 </TouchableOpacity>
 
@@ -462,6 +476,11 @@ export default function PaywallScreen() {
                   Subscription automatically renews unless canceled at least 24 hours
                   before the end of the current period.
                 </Text>
+
+                {/* Maybe later — soft dismiss */}
+                <TouchableOpacity style={styles.maybeLaterButton} onPress={handleClose}>
+                  <Text style={styles.maybeLaterText}>{t('paywall_skip')}</Text>
+                </TouchableOpacity>
               </>
             )}
           </View>
@@ -771,6 +790,32 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 16,
   },
+  closeButton: {
+    position: "absolute",
+    top: 16,
+    right: 20,
+    zIndex: 10,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  closeButtonText: {
+    fontSize: 16,
+    color: "#fff",
+    fontWeight: "600",
+  },
+  maybeLaterButton: {
+    paddingVertical: 8,
+    alignItems: "center",
+  },
+  maybeLaterText: {
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.55)",
+    textDecorationLine: "underline",
+  },
 
   // Web mock purchase dialog (View-based, since Alert.alert with multiple buttons fails on web)
   webDialogOverlay: {
@@ -922,14 +967,14 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 32,
   },
-  featuresCard: {
+  subscribedFeaturesCard: {
     backgroundColor: "rgba(255, 255, 255, 0.15)",
     borderRadius: 20,
     padding: 20,
     width: "100%",
     marginBottom: 32,
   },
-  featuresCardTitle: {
+  subscribedFeaturesCardTitle: {
     fontSize: 14,
     fontWeight: "600",
     color: "rgba(255, 255, 255, 0.7)",

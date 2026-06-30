@@ -32,7 +32,7 @@ export const unstable_settings = {
 
 
 function SubscriptionRedirect() {
-  const { isSubscribed, loading } = useSubscription();
+  const { loading } = useSubscription();
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -60,7 +60,6 @@ function SubscriptionRedirect() {
       pathname.startsWith("/auth-popup") ||
       pathname.startsWith("/auth-callback");
     const onOnboarding = pathname.startsWith("/onboarding");
-    const onPaywall = pathname === "/paywall";
 
     if (!user) {
       if (!onAuthFlow) router.replace("/auth");
@@ -70,15 +69,12 @@ function SubscriptionRedirect() {
       if (!onOnboarding) router.replace("/onboarding");
       return;
     }
-    if (!isSubscribed) {
-      if (!onPaywall) router.replace("/paywall");
-      return;
+    // Paywall is now a soft trigger — not a hard gate.
+    // If stranded on auth/onboarding after completing them, proceed to home.
+    if (onAuthFlow || onOnboarding) {
+      router.replace("/(tabs)/(home)");
     }
-    // Fully unlocked — if stranded on a gate screen, proceed to home.
-    if (onAuthFlow || onOnboarding || onPaywall) {
-      router.replace("/(tabs)");
-    }
-  }, [isSubscribed, loading, authLoading, onboardingDone, pathname, user, router]);
+  }, [loading, authLoading, onboardingDone, pathname, user, router]);
 
   return null;
 }

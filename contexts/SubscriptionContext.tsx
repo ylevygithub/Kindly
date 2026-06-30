@@ -267,15 +267,14 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
       const customerInfo = await Purchases.getCustomerInfo();
       const hasEntitlement =
         typeof customerInfo.entitlements.active[ENTITLEMENT_ID] !== "undefined";
-      // In __DEV__: RC test store purchases don't survive configure(), so only update state
-      // positively — mock/test purchase state persists across reloads via SecureStore cache.
-      if (hasEntitlement || !__DEV__) {
-        setIsSubscribed(hasEntitlement);
-      }
+      setIsSubscribed(hasEntitlement);
       if (hasEntitlement) {
         await SecureStore.setItemAsync(NATIVE_PURCHASE_KEY, "true").catch(() => {});
-      } else if (!__DEV__) {
+      } else {
+        // RC confirmed no active entitlement — clear ALL cached subscription state,
+        // including the dev mock key, so stale "true" values don't persist.
         await SecureStore.setItemAsync(NATIVE_PURCHASE_KEY, "false").catch(() => {});
+        await SecureStore.setItemAsync(MOCK_NATIVE_KEY, "false").catch(() => {});
       }
     } catch (error) {
       console.error("[RevenueCat] Failed to check subscription:", error);
@@ -289,6 +288,10 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
     if (isWeb) {
       console.warn("[RevenueCat] Purchases not available on web");
       return false;
+    }
+    if (!isConfigured) {
+      console.warn("[RevenueCat] Cannot purchase: SDK not configured yet");
+      throw new Error("Purchases are not available in this build. Use a dev or production build to test purchases.");
     }
     try {
       const { customerInfo } = await Purchases.purchasePackage(pkg);
@@ -313,6 +316,10 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
     if (isWeb) {
       console.warn("[RevenueCat] Restore not available on web");
       return false;
+    }
+    if (!isConfigured) {
+      console.warn("[RevenueCat] Cannot restore: SDK not configured yet");
+      throw new Error("Purchases are not available in this build. Use a dev or production build to test purchases.");
     }
     try {
       const customerInfo = await Purchases.restorePurchases();

@@ -15,9 +15,11 @@ import * as Haptics from "expo-haptics";
 import { COLORS } from "@/constants/Colors";
 import { authenticatedGet } from "@/utils/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSubscription } from "@/contexts/SubscriptionContext";
 import ConfettiAnimation, { ConfettiRef } from "@/components/ConfettiAnimation";
 import { AnimatedPressable } from "@/components/AnimatedPressable";
 import { NotificationBell } from "@/components/NotificationBell";
+import { t, tf, CATEGORY_DISPLAY } from "@/utils/i18n";
 
 interface Compliment {
   id: string;
@@ -31,14 +33,6 @@ interface Compliment {
   };
 }
 
-const CATEGORY_ICONS: Record<string, string> = {
-  Personnalité: "🧠",
-  Look: "✨",
-  Talent: "🎯",
-  Humour: "😂",
-  Autre: "💛",
-};
-
 function getRelativeTime(dateStr: string): string {
   const now = new Date();
   const date = new Date(dateStr);
@@ -47,11 +41,11 @@ function getRelativeTime(dateStr: string): string {
   const diffHours = Math.floor(diffMins / 60);
   const diffDays = Math.floor(diffHours / 24);
 
-  if (diffMins < 1) return "à l'instant";
-  if (diffMins < 60) return `il y a ${diffMins}min`;
-  if (diffHours < 24) return `il y a ${diffHours}h`;
-  if (diffDays === 1) return "hier";
-  return `il y a ${diffDays}j`;
+  if (diffMins < 1) return t('home_justNow');
+  if (diffMins < 60) return tf('home_minutesAgo', diffMins);
+  if (diffHours < 24) return tf('home_hoursAgo', diffHours);
+  if (diffDays === 1) return t('home_yesterday');
+  return tf('home_daysAgo', diffDays);
 }
 
 function AnimatedListItem({ index, children }: { index: number; children: React.ReactNode }) {
@@ -110,7 +104,8 @@ function SkeletonCard() {
 
 function ComplimentCard({ item, index }: { item: Compliment; index: number }) {
   const router = useRouter();
-  const categoryIcon = CATEGORY_ICONS[item.category] || "💛";
+  const { isSubscribed } = useSubscription();
+  const categoryIcon = CATEGORY_DISPLAY[item.category] || "💛";
   const relativeTime = getRelativeTime(item.created_at);
 
   const handleGuess = () => {
@@ -119,7 +114,12 @@ function ComplimentCard({ item, index }: { item: Compliment; index: number }) {
   };
 
   const handleReveal = () => {
-    console.log("[Home] Révéler pressed for compliment:", item.id);
+    console.log("[Home] Révéler pressed for compliment:", item.id, "isSubscribed:", isSubscribed);
+    if (!isSubscribed) {
+      console.log("[Home] User not subscribed, redirecting to paywall");
+      router.push("/paywall");
+      return;
+    }
     router.push(`/compliment/${item.id}?reveal=true`);
   };
 
@@ -145,21 +145,21 @@ function ComplimentCard({ item, index }: { item: Compliment; index: number }) {
               <Text style={styles.senderAvatar}>{item.sender.avatar_emoji}</Text>
               <Text style={styles.senderUsername}>{item.sender.username}</Text>
               <View style={styles.revealedBadge}>
-                <Text style={styles.revealedBadgeText}>Révélé ✓</Text>
+                <Text style={styles.revealedBadgeText}>{t('home_revealed')}</Text>
               </View>
             </View>
           ) : (
             <View style={styles.revealedBadge}>
-              <Text style={styles.revealedBadgeText}>Révélé ✓</Text>
+              <Text style={styles.revealedBadgeText}>{t('home_revealed')}</Text>
             </View>
           )
         ) : (
           <View style={styles.cardActions}>
             <AnimatedPressable onPress={handleGuess} style={styles.guessButton}>
-              <Text style={styles.guessButtonText}>Deviner qui 🔍</Text>
+              <Text style={styles.guessButtonText}>{t('home_guess')}</Text>
             </AnimatedPressable>
             <AnimatedPressable onPress={handleReveal} style={styles.revealButton}>
-              <Text style={styles.revealButtonText}>Révéler (5 💛)</Text>
+              <Text style={styles.revealButtonText}>{t('home_reveal')}</Text>
             </AnimatedPressable>
           </View>
         )}
@@ -217,7 +217,7 @@ export default function HomeScreen() {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Text style={styles.headerTitle}>Kindly 💛</Text>
+          <Text style={styles.headerTitle}>{t('appName')}</Text>
                 <NotificationBell />
         
 </View>
@@ -237,10 +237,8 @@ export default function HomeScreen() {
           <View style={styles.emptyIconCircle}>
             <Text style={styles.emptyIcon}>🌱</Text>
           </View>
-          <Text style={styles.emptyTitle}>Aucun compliment pour l'instant</Text>
-          <Text style={styles.emptySubtitle}>
-            Partage ton profil pour en recevoir ! Tes amis peuvent t'envoyer des compliments anonymement.
-          </Text>
+          <Text style={styles.emptyTitle}>{t('home_noCompliments')}</Text>
+          <Text style={styles.emptySubtitle}>{t('home_noComplimentsSubtitle')}</Text>
         </View>
       ) : (
         <FlatList

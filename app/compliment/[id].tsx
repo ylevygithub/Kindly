@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { COLORS } from "@/constants/Colors";
 import { authenticatedGet, authenticatedPost } from "@/utils/api";
+import { useSubscription } from "@/contexts/SubscriptionContext";
 import { AnimatedPressable } from "@/components/AnimatedPressable";
 import ConfettiAnimation, { ConfettiRef } from "@/components/ConfettiAnimation";
 
@@ -63,6 +64,7 @@ export default function ComplimentDetailScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const confettiRef = useRef<ConfettiRef>(null);
+  const { isSubscribed } = useSubscription();
 
   const [compliment, setCompliment] = useState<ComplimentDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -95,7 +97,12 @@ export default function ComplimentDetailScreen() {
   }, [id]);
 
   const handleReveal = useCallback(async () => {
-    console.log("[ComplimentDetail] Reveal button pressed for compliment:", id);
+    console.log("[ComplimentDetail] Reveal button pressed for compliment:", id, "isSubscribed:", isSubscribed);
+    if (!isSubscribed) {
+      console.log("[ComplimentDetail] User not subscribed, redirecting to paywall");
+      router.push("/paywall");
+      return;
+    }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setRevealing(true);
     try {
@@ -136,9 +143,14 @@ export default function ComplimentDetailScreen() {
 
   useEffect(() => {
     if (reveal === "true" && compliment && !compliment.is_revealed) {
+      if (!isSubscribed) {
+        console.log("[ComplimentDetail] reveal=true but user not subscribed, redirecting to paywall");
+        router.replace("/paywall");
+        return;
+      }
       handleReveal();
     }
-  }, [reveal, compliment, handleReveal]);
+  }, [reveal, compliment, handleReveal, isSubscribed, router]);
 
   const handleGuess = async (userId: string) => {
     console.log("[ComplimentDetail] Guess pressed for user:", userId);

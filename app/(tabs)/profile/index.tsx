@@ -18,7 +18,7 @@ import {
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { COLORS } from "@/constants/Colors";
-import { authenticatedGet, authenticatedPost } from "@/utils/api";
+import { authenticatedGet, authenticatedPost, authenticatedDelete } from "@/utils/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { AnimatedPressable } from "@/components/AnimatedPressable";
 import { useNotifications } from "@/contexts/NotificationContext";
@@ -88,6 +88,7 @@ export default function ProfileScreen() {
   const [blockModalVisible, setBlockModalVisible] = useState(false);
   const [recentUsers, setRecentUsers] = useState<RecentUser[]>([]);
   const [signingOut, setSigningOut] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   // Support modal state
   const [supportModalVisible, setSupportModalVisible] = useState(false);
@@ -203,6 +204,50 @@ export default function ProfileScreen() {
             } finally {
               setSigningOut(false);
             }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleDeleteAccount = () => {
+    console.log("[Profile] Delete account button pressed");
+    Alert.alert(
+      "Supprimer mon compte",
+      "Cette action est irréversible. Tous tes compliments, crédits et données seront définitivement supprimés.",
+      [
+        { text: "Annuler", style: "cancel" },
+        {
+          text: "Continuer",
+          style: "destructive",
+          onPress: () => {
+            console.log("[Profile] Delete account first confirmation passed");
+            Alert.alert(
+              "Dernière confirmation",
+              "Es-tu vraiment sûr(e) ? Ton compte sera supprimé immédiatement et ne pourra pas être récupéré.",
+              [
+                { text: "Non, garder mon compte", style: "cancel" },
+                {
+                  text: "Oui, supprimer définitivement",
+                  style: "destructive",
+                  onPress: async () => {
+                    console.log("[Profile] Delete account final confirmation — calling DELETE /api/profiles/me");
+                    setDeletingAccount(true);
+                    try {
+                      await authenticatedDelete("/api/profiles/me");
+                      console.log("[Profile] Account deleted successfully, signing out");
+                      await signOut();
+                      router.replace("/auth");
+                    } catch (err) {
+                      console.log("[Profile] Delete account error:", err);
+                      Alert.alert("Erreur", "Impossible de supprimer le compte. Réessaie ou contacte le support.");
+                    } finally {
+                      setDeletingAccount(false);
+                    }
+                  },
+                },
+              ]
+            );
           },
         },
       ]
@@ -431,6 +476,19 @@ export default function ProfileScreen() {
               <ActivityIndicator color={COLORS.danger} size="small" />
             ) : (
               <Text style={styles.signOutText}>Se déconnecter</Text>
+            )}
+          </AnimatedPressable>
+
+          {/* Delete account */}
+          <AnimatedPressable
+            onPress={handleDeleteAccount}
+            disabled={deletingAccount}
+            style={styles.deleteAccountButton}
+          >
+            {deletingAccount ? (
+              <ActivityIndicator color={COLORS.danger} size="small" />
+            ) : (
+              <Text style={styles.deleteAccountText}>Supprimer mon compte</Text>
             )}
           </AnimatedPressable>
         </ScrollView>
@@ -852,6 +910,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     color: COLORS.danger,
+  },
+  deleteAccountButton: {
+    alignItems: "center",
+    paddingVertical: 12,
+    marginTop: 4,
+  },
+  deleteAccountText: {
+    fontSize: 14,
+    color: COLORS.danger,
+    opacity: 0.7,
   },
   modalOverlay: {
     flex: 1,

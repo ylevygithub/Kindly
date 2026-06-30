@@ -417,20 +417,6 @@ export default function ProfileScreen() {
 
               <AnimatedPressable
                 onPress={() => {
-                  console.log("[Profile] Report problem settings item pressed");
-                  Linking.openURL("mailto:support@kindly.app?subject=Signalement%20d%27un%20problème");
-                }}
-                style={styles.settingsItem}
-              >
-                <Text style={styles.settingsItemIcon}>🚨</Text>
-                <Text style={styles.settingsItemText}>Signaler un problème</Text>
-                <Text style={styles.settingsItemChevron}>›</Text>
-              </AnimatedPressable>
-
-              <View style={styles.settingsDivider} />
-
-              <AnimatedPressable
-                onPress={() => {
                   console.log("[Profile] Block user button pressed");
                   loadRecentUsers();
                   setBlockModalVisible(true);

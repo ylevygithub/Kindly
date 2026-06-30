@@ -5,7 +5,6 @@ import {
   TextInput,
   StyleSheet,
   ScrollView,
-  FlatList,
   TouchableOpacity,
   ActivityIndicator,
   Alert,
@@ -20,6 +19,7 @@ import { authenticatedGet, authenticatedPost } from "@/utils/api";
 import { AnimatedPressable } from "@/components/AnimatedPressable";
 import ConfettiAnimation, { ConfettiRef } from "@/components/ConfettiAnimation";
 import { notifyComplimentRecipient } from "@/utils/notifications";
+import { locale, tForLang, tDailyCount } from "@/utils/i18n";
 
 interface Contact {
   id: string;
@@ -45,12 +45,21 @@ function getDefaultEmoji(category: string, index: number): string {
   return emojis[index % emojis.length];
 }
 
+// Category id → translation key map
+const CAT_KEY_MAP: Record<string, "cat_personality" | "cat_look" | "cat_talent" | "cat_humor" | "cat_other"> = {
+  Personnalité: "cat_personality",
+  Look: "cat_look",
+  Talent: "cat_talent",
+  Humour: "cat_humor",
+  Autre: "cat_other",
+};
+
 const CATEGORIES = [
-  { id: "Personnalité", label: "Personnalité", icon: "🧠" },
-  { id: "Look", label: "Look", icon: "✨" },
-  { id: "Talent", label: "Talent", icon: "🎯" },
-  { id: "Humour", label: "Humour", icon: "😂" },
-  { id: "Autre", label: "Autre", icon: "💛" },
+  { id: "Personnalité", icon: "🧠" },
+  { id: "Look", icon: "✨" },
+  { id: "Talent", icon: "🎯" },
+  { id: "Humour", icon: "😂" },
+  { id: "Autre", icon: "💛" },
 ];
 
 type Step = 1 | 2 | 3;
@@ -59,6 +68,10 @@ export default function SendScreen() {
   const insets = useSafeAreaInsets();
   const confettiRef = useRef<ConfettiRef>(null);
   const { refreshBadge } = useBadge();
+
+  const [lang, setLang] = useState<"fr" | "en">(locale);
+
+  const tl = (key: Parameters<typeof tForLang>[0]) => tForLang(key, lang);
 
   const [step, setStep] = useState<Step>(1);
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -117,7 +130,7 @@ export default function SendScreen() {
   const loadDailyCount = async () => {
     try {
       const data = await authenticatedGet<any>("/api/compliments/daily-count");
-      setDailyCount(typeof data?.count === 'number' ? data.count : 0);
+      setDailyCount(typeof data?.count === "number" ? data.count : 0);
     } catch {
       setDailyCount(0);
     }
@@ -131,7 +144,6 @@ export default function SendScreen() {
         `/api/suggested-compliments?category=${encodeURIComponent(category)}`
       );
       const raw = Array.isArray(data) ? data : (data?.suggestions || data?.compliments || []);
-      // Normalize suggestion objects to always have { id, text }
       const arr: SuggestedCompliment[] = raw.map((item: any, idx: number) => ({
         id: String(item?.id ?? item?.compliment_id ?? idx),
         text: String(item?.text ?? item?.content ?? item?.compliment_text ?? item?.suggestion ?? ""),
@@ -168,6 +180,13 @@ export default function SendScreen() {
     setCustomText("");
   };
 
+  const handleToggleLang = () => {
+    const next = lang === "fr" ? "en" : "fr";
+    console.log("[Send] Language toggled to:", next);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setLang(next);
+  };
+
   const handleSend = async () => {
     const text = isCustom ? customText : selectedSuggestion;
     if (!selectedContact || !text.trim()) return;
@@ -176,9 +195,16 @@ export default function SendScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSending(true);
     try {
+      let finalText = text.trim();
+      const isEmojiOnly = /^\p{Emoji}+$/u.test(finalText) && finalText.length <= 4;
+      if (isEmojiOnly && selectedCategory) {
+        finalText = `${finalText} ${selectedCategory}`;
+        console.log("[Send] Emoji-only text padded with category:", finalText);
+      }
+      console.log("[Send] Sending compliment, text length:", finalText.length);
       await authenticatedPost("/api/compliments", {
         recipient_id: selectedContact.id,
-        text: text.trim(),
+        text: finalText,
         category: selectedCategory,
       });
       console.log("[Send] Compliment sent successfully!");
@@ -186,11 +212,8 @@ export default function SendScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       showSuccessToast();
       setDailyCount((c) => c + 1);
-      // Refresh badge so recipient sees new count
       refreshBadge();
-      // Send push notification to recipient (fire-and-forget)
       notifyComplimentRecipient(selectedContact.id, selectedCategory);
-      // Reset form
       setStep(1);
       setSelectedContact(null);
       setSelectedCategory("");
@@ -201,15 +224,13 @@ export default function SendScreen() {
       console.log("[Send] Error sending compliment:", err?.message);
       const msg = String(err?.message || "");
       if (msg.includes("moderation") || msg.includes("inappropriate")) {
-        Alert.alert("💛 Oups !", "Ce message ne respecte pas nos règles de bienveillance.");
+        Alert.alert(tl("send_oops"), tl("send_errorModeration"));
       } else if (msg.includes("daily_limit") || msg.includes("limit")) {
-        Alert.alert(
-          "Limite atteinte",
-          "Tu as atteint ta limite d'envois gratuits pour aujourd'hui. Passe à Kindly Plus pour des envois illimités !",
-          [{ text: "Annuler", style: "cancel" }]
-        );
+        Alert.alert(tl("send_limitTitle"), tl("send_errorLimit"), [
+          { text: tl("send_cancel"), style: "cancel" },
+        ]);
       } else {
-        Alert.alert("Erreur", "Impossible d'envoyer le compliment. Réessaie.");
+        Alert.alert(tl("send_oops"), tl("send_errorGeneric"));
       }
     } finally {
       setSending(false);
@@ -222,7 +243,23 @@ export default function SendScreen() {
 
   const complimentText = isCustom ? customText : selectedSuggestion;
   const canSend = !!selectedContact && !!complimentText.trim() && !sending;
-  const remainingCount = Math.max(0, dailyLimit - dailyCount);
+
+  const langFlag = lang === "fr" ? "🇫🇷" : "🇬🇧";
+  const dailyCounterLabel = tDailyCount(dailyCount, dailyLimit, lang);
+  const successToastLabel = tl("send_success");
+  const headerTitleLabel = tl("send_title");
+  const step1Label = tl("send_step1");
+  const step2Label = tl("send_step2");
+  const step3Label = tl("send_step3");
+  const searchPlaceholder = tl("send_search");
+  const noContactsTitle = tl("send_noContacts");
+  const noContactsSubtitle = tl("send_noContactsSubtitle");
+  const inviteLabel = tl("send_invite");
+  const changeLabel = tl("send_change");
+  const writeOwnLabel = isCustom ? tl("send_writeOwnActive") : tl("send_writeOwn");
+  const warningBannerLabel = tl("send_warningBanner");
+  const placeholderLabel = tl("send_placeholder");
+  const sendButtonLabel = tl("send_sendButton");
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -240,16 +277,23 @@ export default function SendScreen() {
         ]}
         pointerEvents="none"
       >
-        <Text style={styles.successToastText}>Compliment envoyé ! 💛</Text>
+        <Text style={styles.successToastText}>{successToastLabel}</Text>
       </Animated.View>
 
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Envoyer un compliment 💌</Text>
+        <View style={styles.headerRow}>
+          <Text style={styles.headerTitle}>{headerTitleLabel}</Text>
+          <TouchableOpacity
+            onPress={handleToggleLang}
+            style={styles.langToggle}
+            accessibilityLabel="Toggle language"
+          >
+            <Text style={styles.langToggleText}>{langFlag}</Text>
+          </TouchableOpacity>
+        </View>
         <View style={styles.dailyCounter}>
-          <Text style={styles.dailyCounterText}>
-            {dailyCount}/{dailyLimit} envois aujourd'hui
-          </Text>
+          <Text style={styles.dailyCounterText}>{dailyCounterLabel}</Text>
         </View>
       </View>
 
@@ -281,7 +325,7 @@ export default function SendScreen() {
         <View style={styles.stepSection}>
           <View style={styles.stepHeader}>
             <Text style={styles.stepNumber}>1</Text>
-            <Text style={styles.stepTitle}>Choisir le destinataire</Text>
+            <Text style={styles.stepTitle}>{step1Label}</Text>
           </View>
 
           {selectedContact ? (
@@ -295,13 +339,13 @@ export default function SendScreen() {
             >
               <Text style={styles.selectedContactAvatar}>{selectedContact.avatar_emoji}</Text>
               <Text style={styles.selectedContactName}>{selectedContact.username}</Text>
-              <Text style={styles.changeText}>Changer</Text>
+              <Text style={styles.changeText}>{changeLabel}</Text>
             </AnimatedPressable>
           ) : (
             <>
               <TextInput
                 style={styles.searchInput}
-                placeholder="Rechercher un ami..."
+                placeholder={searchPlaceholder}
                 placeholderTextColor={COLORS.textTertiary}
                 value={searchQuery}
                 onChangeText={(v) => {
@@ -314,19 +358,18 @@ export default function SendScreen() {
               ) : filteredContacts.length === 0 ? (
                 <View style={styles.noContactsState}>
                   <Text style={styles.noContactsEmoji}>👥</Text>
-                  <Text style={styles.noContactsTitle}>Aucun contact pour l'instant</Text>
-                  <Text style={styles.noContactsSubtitle}>
-                    Invite tes amis via le bouton Partager sur ton profil !
-                  </Text>
+                  <Text style={styles.noContactsTitle}>{noContactsTitle}</Text>
+                  <Text style={styles.noContactsSubtitle}>{noContactsSubtitle}</Text>
                   <AnimatedPressable
                     onPress={() => {
                       console.log("[Send] Invite friends button pressed");
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      Linking.openURL("sms:?body=Rejoins-moi sur Kindly, l'app pour envoyer des compliments anonymes ! 💛");
+                      const smsBody = tl("send_inviteSms");
+                      Linking.openURL(`sms:?body=${encodeURIComponent(smsBody)}`);
                     }}
                     style={styles.inviteButton}
                   >
-                    <Text style={styles.inviteButtonText}>Inviter des amis 💌</Text>
+                    <Text style={styles.inviteButtonText}>{inviteLabel}</Text>
                   </AnimatedPressable>
                 </View>
               ) : (
@@ -352,12 +395,14 @@ export default function SendScreen() {
           <View style={styles.stepSection}>
             <View style={styles.stepHeader}>
               <Text style={styles.stepNumber}>2</Text>
-              <Text style={styles.stepTitle}>Choisir la catégorie</Text>
+              <Text style={styles.stepTitle}>{step2Label}</Text>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoriesScroll}>
               <View style={styles.categoriesRow}>
                 {CATEGORIES.map((cat) => {
                   const isSelected = selectedCategory === cat.id;
+                  const catKey = CAT_KEY_MAP[cat.id];
+                  const catLabel = catKey ? tForLang(catKey, lang) : cat.id;
                   return (
                     <AnimatedPressable
                       key={cat.id}
@@ -366,7 +411,7 @@ export default function SendScreen() {
                     >
                       <Text style={styles.categoryPillIcon}>{cat.icon}</Text>
                       <Text style={[styles.categoryPillText, isSelected && styles.categoryPillTextSelected]}>
-                        {cat.label}
+                        {catLabel}
                       </Text>
                     </AnimatedPressable>
                   );
@@ -381,7 +426,7 @@ export default function SendScreen() {
           <View style={styles.stepSection}>
             <View style={styles.stepHeader}>
               <Text style={styles.stepNumber}>3</Text>
-              <Text style={styles.stepTitle}>Choisir le compliment</Text>
+              <Text style={styles.stepTitle}>{step3Label}</Text>
             </View>
 
             {suggestionsLoading ? (
@@ -428,20 +473,18 @@ export default function SendScreen() {
               style={[styles.customToggle, isCustom && styles.customToggleActive]}
             >
               <Text style={[styles.customToggleText, isCustom && styles.customToggleTextActive]}>
-                {isCustom ? "✓ Écrire le mien" : "+ Écrire le mien"}
+                {writeOwnLabel}
               </Text>
             </AnimatedPressable>
 
             {isCustom && (
               <View style={styles.customInputContainer}>
                 <View style={styles.warningBanner}>
-                  <Text style={styles.warningText}>
-                    💛 Reste bienveillant(e) — les messages irrespectueux sont filtrés automatiquement
-                  </Text>
+                  <Text style={styles.warningText}>{warningBannerLabel}</Text>
                 </View>
                 <TextInput
                   style={styles.customInput}
-                  placeholder="Écris ton compliment ici..."
+                  placeholder={placeholderLabel}
                   placeholderTextColor={COLORS.textTertiary}
                   value={customText}
                   onChangeText={(v) => {
@@ -468,7 +511,7 @@ export default function SendScreen() {
             {sending ? (
               <ActivityIndicator color={COLORS.text} size="small" />
             ) : (
-              <Text style={styles.sendButtonText}>Envoyer anonymement 💛</Text>
+              <Text style={styles.sendButtonText}>{sendButtonLabel}</Text>
             )}
           </AnimatedPressable>
         )}
@@ -489,11 +532,28 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.divider,
     gap: 4,
   },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
   headerTitle: {
     fontSize: 22,
     fontWeight: "800",
     color: COLORS.text,
     letterSpacing: -0.3,
+    flex: 1,
+  },
+  langToggle: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: COLORS.surfaceSecondary,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  langToggleText: {
+    fontSize: 20,
   },
   dailyCounter: {
     alignSelf: "flex-start",
@@ -798,11 +858,9 @@ const styles = StyleSheet.create({
     height: 56,
     alignItems: "center",
     justifyContent: "center",
-
   },
   sendButtonDisabled: {
     opacity: 0.5,
-
   },
   sendButtonText: {
     fontSize: 17,

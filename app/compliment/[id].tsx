@@ -248,7 +248,7 @@ export default function ComplimentDetailScreen() {
           {!compliment.is_revealed && guessSuggestions.length > 0 && (
             <View style={styles.guessSection}>
               <Text style={styles.guessSectionTitle}>Deviner qui t'a envoyé ça 🔍</Text>
-              <View style={styles.guessGrid}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.guessGrid}>
                 {guessSuggestions.map((suggestion) => {
                   const isSelected = selectedGuess === suggestion.id;
                   const isCorrect = isSelected && guessResult === "correct";
@@ -266,7 +266,7 @@ export default function ComplimentDetailScreen() {
                       ]}
                     >
                       <Text style={styles.guessAvatar}>{suggestion.avatar_emoji}</Text>
-                      <Text style={styles.guessUsername}>{suggestion.username}</Text>
+                      <Text style={styles.guessUsername} numberOfLines={2}>{suggestion.username}</Text>
                       {isSelected && (
                         <Text style={styles.guessResultIcon}>
                           {guessResult === "correct" ? "✓" : "?"}
@@ -275,7 +275,7 @@ export default function ComplimentDetailScreen() {
                     </AnimatedPressable>
                   );
                 })}
-              </View>
+              </ScrollView>
               {guessResult && (
                 <View style={[
                   styles.guessResultBanner,
@@ -460,11 +460,13 @@ const styles = StyleSheet.create({
   },
   guessGrid: {
     flexDirection: "row",
-    flexWrap: "wrap",
     gap: 10,
+    paddingHorizontal: 2,
+    paddingVertical: 4,
   },
   guessCard: {
-    width: "47%",
+    width: 110,
+    minHeight: 90,
     backgroundColor: COLORS.surface,
     borderRadius: 16,
     padding: 14,
@@ -472,7 +474,6 @@ const styles = StyleSheet.create({
     gap: 6,
     borderWidth: 1.5,
     borderColor: COLORS.border,
-
   },
   guessCardSelected: {
     borderColor: COLORS.primary,
@@ -491,7 +492,7 @@ const styles = StyleSheet.create({
     fontSize: 32,
   },
   guessUsername: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "700",
     color: COLORS.text,
     textAlign: "center",

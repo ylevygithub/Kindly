@@ -73,6 +73,7 @@ function AnimatedListItem({ index, children }: { index: number; children: React.
         useNativeDriver: true,
       }),
     ]).start();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -92,6 +93,7 @@ function SkeletonCard() {
         Animated.timing(opacity, { toValue: 0.3, duration: 800, useNativeDriver: true }),
       ])
     ).start();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

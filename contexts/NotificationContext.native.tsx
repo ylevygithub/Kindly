@@ -25,14 +25,12 @@ import React, {
 } from "react";
 import { Platform, TurboModuleRegistry } from "react-native";
 import Constants from "expo-constants";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Check if OneSignal native module is available BEFORE any require.
 // TurboModuleRegistry.getEnforcing throws a synchronous native error that
 // bypasses JS try/catch, so we use .get() (non-enforcing) as the guard.
 const isOneSignalAvailable = !!TurboModuleRegistry.get("OneSignal");
-
-// Import auth hook for user targeting (validated at setup time)
-import { useAuth } from "@/contexts/AuthContext";
 
 // Read App ID from app.json (expo.extra)
 const extra = Constants.expoConfig?.extra || {};
@@ -104,6 +102,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
 
     let OSModule: any;
     try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       OSModule = require("react-native-onesignal");
     } catch (e) {
       console.warn("[OneSignal] Native module not available:", e);
@@ -164,6 +163,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
 
     let OSModule: any;
     try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       OSModule = require("react-native-onesignal");
     } catch (e) {
       return;
@@ -190,6 +190,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
 
     let OSModule: any;
     try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       OSModule = require("react-native-onesignal");
     } catch (e) {
       return false;
@@ -212,6 +213,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     if (!isOneSignalAvailable) return;
     let OSModule: any;
     try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       OSModule = require("react-native-onesignal");
     } catch (e) {
       return;
@@ -229,6 +231,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     if (!isOneSignalAvailable) return;
     let OSModule: any;
     try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       OSModule = require("react-native-onesignal");
     } catch (e) {
       return;

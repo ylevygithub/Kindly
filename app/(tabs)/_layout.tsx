@@ -6,8 +6,11 @@ import ContactImportModal from "@/components/ContactImportModal";
 import { COLORS } from "@/constants/Colors";
 import { useBadge } from "@/contexts/BadgeContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
 
 export default function TabLayout() {
+  useSubscriptionGuard();
+
   const { user } = useAuth();
   const { homeBadgeCount, refreshBadge, markHomeSeen } = useBadge();
   const pathname = usePathname();

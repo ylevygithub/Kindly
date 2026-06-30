@@ -22,6 +22,7 @@ import { authenticatedGet, authenticatedPost, authenticatedDelete } from "@/util
 import { useAuth } from "@/contexts/AuthContext";
 import { AnimatedPressable } from "@/components/AnimatedPressable";
 import { useNotifications } from "@/contexts/NotificationContext";
+import { useSubscription } from "@/contexts/SubscriptionContext";
 
 interface Profile {
   username: string;
@@ -50,6 +51,7 @@ function FlameIcon({ active }: { active: boolean }) {
         ])
       ).start();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active]);
 
   return (
@@ -68,6 +70,7 @@ function SkeletonProfile() {
         Animated.timing(opacity, { toValue: 0.3, duration: 800, useNativeDriver: true }),
       ])
     ).start();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return (
     <Animated.View style={{ opacity, gap: 16, padding: 20 }}>
@@ -81,6 +84,7 @@ function SkeletonProfile() {
 export default function ProfileScreen() {
   const { user, signOut } = useAuth();
   const { hasPermission } = useNotifications();
+  const { isSubscribed } = useSubscription();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -282,7 +286,8 @@ export default function ProfileScreen() {
   const totalReceived = profile?.total_received ?? 0;
   const streak = profile?.streak ?? 0;
   const credits = profile?.credits ?? 0;
-  const isPremium = profile?.is_premium ?? false;
+  // isPremium: true if backend says so OR if RevenueCat subscription is active
+  const isPremium = (profile?.is_premium ?? false) || isSubscribed;
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -308,7 +313,7 @@ export default function ProfileScreen() {
                 <Text style={styles.username}>{profile?.username || user?.name || "Utilisateur"}</Text>
                 {isPremium && (
                   <View style={styles.premiumBadge}>
-                    <Text style={styles.premiumBadgeText}>✨ Plus</Text>
+                    <Text style={styles.premiumBadgeText}>✨ Premium</Text>
                   </View>
                 )}
               </View>
@@ -401,6 +406,20 @@ export default function ProfileScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Réglages</Text>
             <View style={styles.settingsCard}>
+              <AnimatedPressable
+                onPress={() => {
+                  console.log("[Profile] Boutique settings item pressed");
+                  router.push("/shop");
+                }}
+                style={styles.settingsItem}
+              >
+                <Text style={styles.settingsItemIcon}>💛</Text>
+                <Text style={styles.settingsItemText}>Boutique</Text>
+                <Text style={styles.settingsItemChevron}>›</Text>
+              </AnimatedPressable>
+
+              <View style={styles.settingsDivider} />
+
               <AnimatedPressable
                 onPress={() => {
                   console.log("[Profile] Notifications settings item pressed");

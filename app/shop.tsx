@@ -1,102 +1,230 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  Alert,
   ActivityIndicator,
+  Animated,
+  TouchableOpacity,
+  Platform,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { COLORS } from "@/constants/Colors";
-import { apiGet, apiPost } from "@/utils/api";
+import { useSubscription } from "@/contexts/SubscriptionContext";
 import { AnimatedPressable } from "@/components/AnimatedPressable";
+import Purchases, { PurchasesPackage } from "react-native-purchases";
 
-interface CreditsBalance {
-  credits: number;
-  is_premium: boolean;
+// ─── Skeleton ────────────────────────────────────────────────────────────────
+function SkeletonBlock({ width, height, style }: { width?: number | string; height: number; style?: object }) {
+  const opacity = useRef(new Animated.Value(0.3)).current;
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 0.7, duration: 800, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0.3, duration: 800, useNativeDriver: true }),
+      ])
+    ).start();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return (
+    <Animated.View
+      style={[
+        { height, borderRadius: 12, backgroundColor: COLORS.surfaceSecondary },
+        width ? { width } : { flex: 1 },
+        { opacity },
+        style,
+      ]}
+    />
+  );
 }
 
-const CREDIT_PACKS = [
-  { id: "pack_10", credits: 10, price: "0,99€", label: null },
-  { id: "pack_50", credits: 50, price: "3,99€", label: "Populaire" },
-  { id: "pack_150", credits: 150, price: "9,99€", label: "Meilleure valeur" },
-];
+function LoadingSkeleton() {
+  return (
+    <View style={{ gap: 20, paddingHorizontal: 16, paddingTop: 20 }}>
+      <SkeletonBlock height={80} />
+      <View style={{ gap: 12 }}>
+        <SkeletonBlock height={20} width={160} />
+        <View style={{ flexDirection: "row", gap: 12 }}>
+          <SkeletonBlock height={180} />
+          <SkeletonBlock height={180} />
+        </View>
+        <SkeletonBlock height={52} />
+      </View>
+      <View style={{ gap: 12 }}>
+        <SkeletonBlock height={20} width={140} />
+        <View style={{ flexDirection: "row", gap: 10 }}>
+          <SkeletonBlock height={130} />
+          <SkeletonBlock height={130} />
+          <SkeletonBlock height={130} />
+        </View>
+      </View>
+    </View>
+  );
+}
 
-const PLUS_FEATURES = [
-  { icon: "✉️", text: "Envois illimités" },
-  { icon: "👁️", text: "5 reveals gratuits/mois" },
-  { icon: "🎨", text: "Thèmes exclusifs" },
-  { icon: "⭐", text: "Badge profil premium" },
-];
+// ─── Toast ────────────────────────────────────────────────────────────────────
+function Toast({ message, visible }: { message: string; visible: boolean }) {
+  const translateY = useRef(new Animated.Value(-80)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
 
+  useEffect(() => {
+    if (visible) {
+      Animated.parallel([
+        Animated.spring(translateY, { toValue: 0, useNativeDriver: true, tension: 80, friction: 10 }),
+        Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(translateY, { toValue: -80, duration: 300, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+      ]).start();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
+
+  return (
+    <Animated.View style={[styles.toast, { transform: [{ translateY }], opacity }]}>
+      <Text style={styles.toastText}>{message}</Text>
+    </Animated.View>
+  );
+}
+
+// ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function ShopScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [balance, setBalance] = useState<CreditsBalance | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [purchasingPack, setPurchasingPack] = useState<string | null>(null);
-  const [purchasingPlus, setPurchasingPlus] = useState(false);
+  const { packages, loading, isSubscribed, purchasePackage, restorePurchases, isWeb } = useSubscription();
 
-  useEffect(() => {
-    loadBalance();
-  }, []);
+  const [selectedPlan, setSelectedPlan] = useState<"monthly" | "annual">("annual");
+  const [purchasingId, setPurchasingId] = useState<string | null>(null);
+  const [restoringPurchases, setRestoringPurchases] = useState(false);
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
 
-  const loadBalance = async () => {
-    console.log("[Shop] Loading credits balance");
-    try {
-      const data = await apiGet<CreditsBalance>("/api/credits/balance");
-      setBalance(data);
-      console.log("[Shop] Balance loaded:", data.credits, "credits, premium:", data.is_premium);
-    } catch (err) {
-      console.log("[Shop] Error loading balance:", err);
-      setBalance({ credits: 0, is_premium: false });
-    } finally {
-      setLoading(false);
-    }
+  // Identify packages by their RevenueCat identifier
+  const monthlyPkg = packages.find(
+    (p) =>
+      p.identifier?.toLowerCase().includes("monthly") ||
+      p.identifier === "$rc_monthly"
+  ) ?? null;
+
+  const annualPkg = packages.find(
+    (p) =>
+      p.identifier?.toLowerCase().includes("annual") ||
+      p.identifier?.toLowerCase().includes("yearly") ||
+      p.identifier === "$rc_annual"
+  ) ?? null;
+
+  const creditsPacks = packages.filter(
+    (p) =>
+      p.identifier?.toLowerCase().includes("credits") ||
+      p.identifier?.toLowerCase().includes("pack")
+  );
+
+  // Fallback: if no credits packs found, show static placeholders
+  const staticCreditPacks = [
+    { id: "kindly_credits_small", credits: 10, label: null },
+    { id: "kindly_credits_medium", credits: 50, label: "Populaire" },
+    { id: "kindly_credits_large", credits: 100, label: null },
+  ];
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setToastVisible(true);
+    setTimeout(() => setToastVisible(false), 3000);
   };
 
-  const handlePurchasePack = async (packId: string, credits: number, price: string) => {
-    console.log("[Shop] Purchase pack pressed:", packId, credits, "credits at", price);
-    setPurchasingPack(packId);
+  const handleSubscribe = async () => {
+    const pkg = selectedPlan === "monthly" ? monthlyPkg : annualPkg;
+    if (!pkg) {
+      console.log("[Shop] Subscribe pressed but no package found for plan:", selectedPlan);
+      setErrorMessage("Abonnement non disponible pour le moment.");
+      return;
+    }
+    console.log("[Shop] Subscribe button pressed, plan:", selectedPlan, "package:", pkg.identifier);
+    setErrorMessage("");
+    setPurchasingId(selectedPlan);
     try {
-      await apiPost("/api/credits/purchase", { pack: packId });
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setBalance((prev) => prev ? { ...prev, credits: prev.credits + credits } : null);
-      Alert.alert("🎉 Achat réussi !", `${credits} crédits 💛 ont été ajoutés à ton compte.`);
-      console.log("[Shop] Pack purchased successfully:", packId);
+      const success = await purchasePackage(pkg);
+      if (success) {
+        console.log("[Shop] Subscription purchase successful:", selectedPlan);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        showToast("Achat réussi ! 💛");
+      } else {
+        console.log("[Shop] Subscription purchase cancelled or failed:", selectedPlan);
+      }
     } catch (err: any) {
-      console.log("[Shop] Purchase error:", err?.message);
-      Alert.alert("Erreur", "L'achat a échoué. Réessaie.");
+      console.log("[Shop] Subscription purchase error:", err?.message);
+      setErrorMessage("L'achat a échoué. Réessaie.");
     } finally {
-      setPurchasingPack(null);
+      setPurchasingId(null);
     }
   };
 
-  const handlePurchasePlus = async () => {
-    console.log("[Shop] Kindly Plus purchase pressed");
-    setPurchasingPlus(true);
+  const handleBuyCredits = async (pkg: PurchasesPackage | null, staticId: string, credits: number) => {
+    console.log("[Shop] Buy credits pressed, pack:", staticId, "credits:", credits);
+    if (!pkg) {
+      console.log("[Shop] No RevenueCat package found for credits pack:", staticId);
+      setErrorMessage("Pack non disponible pour le moment.");
+      return;
+    }
+    setErrorMessage("");
+    setPurchasingId(staticId);
     try {
-      await apiPost("/api/credits/purchase", { pack: "pack_50" });
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setBalance((prev) => prev ? { ...prev, is_premium: true } : null);
-      Alert.alert("🎉 Kindly Plus activé !", "Profite de tous tes avantages premium !");
-      console.log("[Shop] Kindly Plus activated successfully");
+      const success = await purchasePackage(pkg);
+      if (success) {
+        console.log("[Shop] Credits purchase successful:", staticId, credits, "credits");
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        showToast(`${credits} crédits ajoutés ! 💛`);
+      } else {
+        console.log("[Shop] Credits purchase cancelled:", staticId);
+      }
     } catch (err: any) {
-      console.log("[Shop] Plus purchase error:", err?.message);
-      Alert.alert("Erreur", "L'activation a échoué. Réessaie.");
+      console.log("[Shop] Credits purchase error:", err?.message);
+      setErrorMessage("L'achat a échoué. Réessaie.");
     } finally {
-      setPurchasingPlus(false);
+      setPurchasingId(null);
     }
   };
 
-  const currentCredits = balance?.credits ?? 0;
-  const isPremium = balance?.is_premium ?? false;
+  const handleRestore = async () => {
+    console.log("[Shop] Restore purchases pressed");
+    setRestoringPurchases(true);
+    setErrorMessage("");
+    try {
+      const found = await restorePurchases();
+      if (found) {
+        console.log("[Shop] Purchases restored successfully");
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        showToast("Achats restaurés ! 💛");
+      } else {
+        console.log("[Shop] No purchases found to restore");
+        showToast("Aucun achat trouvé.");
+      }
+    } catch (err: any) {
+      console.log("[Shop] Restore error:", err?.message);
+      setErrorMessage("Erreur lors de la restauration.");
+    } finally {
+      setRestoringPurchases(false);
+    }
+  };
+
+  const monthlyPrice = monthlyPkg?.product?.priceString ?? "—";
+  const annualPrice = annualPkg?.product?.priceString ?? "—";
+
+  const isSubscribingMonthly = purchasingId === "monthly";
+  const isSubscribingAnnual = purchasingId === "annual";
+  const isSubscribingAny = isSubscribingMonthly || isSubscribingAnnual;
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
+      {/* Toast */}
+      <Toast message={toastMessage} visible={toastVisible} />
+
       {/* Header */}
       <View style={styles.header}>
         <AnimatedPressable
@@ -108,118 +236,189 @@ export default function ShopScreen() {
         >
           <Text style={styles.backIcon}>‹</Text>
         </AnimatedPressable>
-        <Text style={styles.headerTitle}>Boutique Kindly 💛</Text>
+        <Text style={styles.headerTitle}>Boutique 💛</Text>
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Balance display */}
-        <View style={styles.balanceCard}>
-          {loading ? (
-            <ActivityIndicator color={COLORS.primary} />
-          ) : (
-            <>
-              <Text style={styles.balanceValue}>{currentCredits} 💛</Text>
-              <Text style={styles.balanceLabel}>Ton solde actuel</Text>
-              {isPremium && (
-                <View style={styles.premiumActiveBadge}>
-                  <Text style={styles.premiumActiveBadgeText}>✨ Kindly Plus actif</Text>
-                </View>
-              )}
-            </>
+      {loading ? (
+        <LoadingSkeleton />
+      ) : (
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Premium active banner */}
+          {isSubscribed && (
+            <View style={styles.premiumActiveBanner}>
+              <Text style={styles.premiumActiveBannerText}>✓ Premium actif</Text>
+            </View>
           )}
-        </View>
 
-        {/* Kindly Plus section */}
-        {!isPremium && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Kindly Plus ✨</Text>
-            <View style={styles.plusCard}>
-              <View style={styles.plusCardHeader}>
-                <Text style={styles.plusCardTitle}>Passe à Kindly Plus</Text>
-                <Text style={styles.plusCardPrice}>4,99€/mois</Text>
-              </View>
-              <View style={styles.plusFeaturesList}>
-                {PLUS_FEATURES.map((feature, i) => (
-                  <View key={i} style={styles.plusFeatureItem}>
-                    <Text style={styles.plusFeatureIcon}>{feature.icon}</Text>
-                    <Text style={styles.plusFeatureText}>{feature.text}</Text>
-                  </View>
-                ))}
-              </View>
+          {/* Error message */}
+          {errorMessage.length > 0 && (
+            <View style={styles.errorBanner}>
+              <Text style={styles.errorBannerText}>{errorMessage}</Text>
+            </View>
+          )}
+
+          {/* ── Section 1: Kindly Premium ── */}
+          {isSubscribed ? (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Kindly Premium ✨</Text>
               <AnimatedPressable
-                onPress={handlePurchasePlus}
-                disabled={purchasingPlus}
-                style={[styles.plusButton, purchasingPlus && styles.plusButtonLoading]}
+                onPress={() => {
+                  console.log("[Shop] Manage subscription pressed");
+                  if (Platform.OS === "ios") {
+                    Purchases.showManageSubscriptions().catch(() => {});
+                  }
+                }}
+                style={styles.manageSubButton}
               >
-                {purchasingPlus ? (
+                <Text style={styles.manageSubButtonText}>Gérer mon abonnement →</Text>
+              </AnimatedPressable>
+            </View>
+          ) : (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Kindly Premium ✨</Text>
+              <Text style={styles.sectionSubtitle}>Choisissez votre formule</Text>
+
+              {/* Plan cards */}
+              <View style={styles.planRow}>
+                {/* Monthly card */}
+                <AnimatedPressable
+                  onPress={() => {
+                    console.log("[Shop] Monthly plan selected");
+                    setSelectedPlan("monthly");
+                  }}
+                  style={[
+                    styles.planCard,
+                    selectedPlan === "monthly" && styles.planCardSelected,
+                  ]}
+                >
+                  <Text style={styles.planCardTitle}>Mensuel</Text>
+                  <Text style={styles.planCardPrice}>{monthlyPrice}</Text>
+                  <Text style={styles.planCardPeriod}>par mois</Text>
+                </AnimatedPressable>
+
+                {/* Annual card */}
+                <AnimatedPressable
+                  onPress={() => {
+                    console.log("[Shop] Annual plan selected");
+                    setSelectedPlan("annual");
+                  }}
+                  style={[
+                    styles.planCard,
+                    selectedPlan === "annual" && styles.planCardSelected,
+                  ]}
+                >
+                  <View style={styles.bestBadge}>
+                    <Text style={styles.bestBadgeText}>Meilleure offre</Text>
+                  </View>
+                  <Text style={styles.planCardTitle}>Annuel</Text>
+                  <Text style={styles.planCardPrice}>{annualPrice}</Text>
+                  <Text style={styles.planCardPeriod}>par an</Text>
+                </AnimatedPressable>
+              </View>
+
+              {/* Benefits */}
+              <View style={styles.benefitsList}>
+                <BenefitRow icon="💛" text="Crédits illimités" />
+                <BenefitRow icon="✨" text="Badge Premium sur ton profil" />
+                <BenefitRow icon="⚡" text="Support prioritaire" />
+              </View>
+
+              {/* Subscribe CTA */}
+              <AnimatedPressable
+                onPress={handleSubscribe}
+                disabled={isSubscribingAny}
+                style={[styles.subscribeButton, isSubscribingAny && styles.buttonLoading]}
+              >
+                {isSubscribingAny ? (
                   <ActivityIndicator color={COLORS.text} size="small" />
                 ) : (
-                  <Text style={styles.plusButtonText}>Essayer Kindly Plus 🚀</Text>
+                  <Text style={styles.subscribeButtonText}>S'abonner</Text>
                 )}
               </AnimatedPressable>
             </View>
-          </View>
-        )}
+          )}
 
-        {/* Credit packs section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Packs de crédits 💛</Text>
-          <Text style={styles.sectionSubtitle}>
-            Utilise tes crédits pour révéler qui t'a envoyé un compliment (5 💛 par révélation)
-          </Text>
-          <View style={styles.packsRow}>
-            {CREDIT_PACKS.map((pack) => {
-              const isLoading = purchasingPack === pack.id;
-              const isPopular = pack.label === "Populaire";
-              const isBest = pack.label === "Meilleure valeur";
-              return (
-                <AnimatedPressable
-                  key={pack.id}
-                  onPress={() => handlePurchasePack(pack.id, pack.credits, pack.price)}
-                  disabled={!!purchasingPack}
-                  style={[
-                    styles.packCard,
-                    isPopular && styles.packCardPopular,
-                    isBest && styles.packCardBest,
-                  ]}
-                >
-                  {pack.label && (
-                    <View style={[
-                      styles.packLabel,
-                      isPopular && styles.packLabelPopular,
-                      isBest && styles.packLabelBest,
-                    ]}>
-                      <Text style={styles.packLabelText}>{pack.label}</Text>
-                    </View>
-                  )}
-                  {isLoading ? (
-                    <ActivityIndicator color={isPopular ? COLORS.text : COLORS.primary} size="small" />
-                  ) : (
-                    <>
-                      <Text style={styles.packCredits}>{pack.credits}</Text>
-                      <Text style={styles.packCreditsLabel}>💛</Text>
+          {/* ── Section 2: Credit packs ── */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Packs de crédits 💛</Text>
+            <Text style={styles.sectionSubtitle}>
+              Utilise tes crédits pour révéler qui t'a envoyé un compliment
+            </Text>
+            <View style={styles.packsRow}>
+              {staticCreditPacks.map((pack, index) => {
+                const rcPkg = creditsPacks[index] ?? null;
+                const priceStr = rcPkg?.product?.priceString ?? null;
+                const isPopular = pack.label === "Populaire";
+                const isPurchasing = purchasingId === pack.id;
+                return (
+                  <View key={pack.id} style={[styles.packCard, isPopular && styles.packCardPopular]}>
+                    {pack.label && (
+                      <View style={[styles.packBadge, isPopular && styles.packBadgePopular]}>
+                        <Text style={styles.packBadgeText}>{pack.label}</Text>
+                      </View>
+                    )}
+                    <Text style={[styles.packCredits, isPopular && styles.packCreditsPopular]}>
+                      {pack.credits}
+                    </Text>
+                    <Text style={styles.packCreditsEmoji}>💛</Text>
+                    {priceStr ? (
                       <Text style={[styles.packPrice, isPopular && styles.packPricePopular]}>
-                        {pack.price}
+                        {priceStr}
                       </Text>
-                    </>
-                  )}
-                </AnimatedPressable>
-              );
-            })}
+                    ) : (
+                      <Text style={[styles.packPrice, isPopular && styles.packPricePopular]}>—</Text>
+                    )}
+                    <AnimatedPressable
+                      onPress={() => handleBuyCredits(rcPkg, pack.id, pack.credits)}
+                      disabled={!!purchasingId}
+                      style={[styles.packBuyButton, isPopular && styles.packBuyButtonPopular]}
+                    >
+                      {isPurchasing ? (
+                        <ActivityIndicator color={isPopular ? COLORS.text : COLORS.primary} size="small" />
+                      ) : (
+                        <Text style={[styles.packBuyButtonText, isPopular && styles.packBuyButtonTextPopular]}>
+                          Acheter
+                        </Text>
+                      )}
+                    </AnimatedPressable>
+                  </View>
+                );
+              })}
+            </View>
           </View>
-        </View>
 
-        {/* Info note */}
-        <View style={styles.infoNote}>
-          <Text style={styles.infoNoteText}>
-            💛 Les crédits ne sont jamais perdus. Ils restent sur ton compte jusqu'à utilisation.
-          </Text>
-        </View>
-      </ScrollView>
+          {/* ── Footer ── */}
+          <View style={styles.footer}>
+            <TouchableOpacity
+              onPress={handleRestore}
+              disabled={restoringPurchases}
+              style={styles.restoreButton}
+            >
+              {restoringPurchases ? (
+                <ActivityIndicator color={COLORS.textSecondary} size="small" />
+              ) : (
+                <Text style={styles.restoreButtonText}>Restaurer mes achats</Text>
+              )}
+            </TouchableOpacity>
+            <Text style={styles.legalText}>
+              Les abonnements se renouvellent automatiquement. Vous pouvez annuler à tout moment depuis les réglages de votre compte App Store. Les achats de crédits sont définitifs et non remboursables.
+            </Text>
+          </View>
+        </ScrollView>
+      )}
+    </View>
+  );
+}
+
+function BenefitRow({ icon, text }: { icon: string; text: string }) {
+  return (
+    <View style={styles.benefitRow}>
+      <Text style={styles.benefitIcon}>{icon}</Text>
+      <Text style={styles.benefitText}>{text}</Text>
     </View>
   );
 }
@@ -260,41 +459,63 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 20,
     paddingBottom: 60,
-    gap: 24,
+    gap: 28,
   },
-  balanceCard: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 20,
-    padding: 20,
-    alignItems: "center",
-    gap: 4,
-    boxShadow: "0 4px 16px rgba(255,184,48,0.3)",
-  },
-  balanceValue: {
-    fontSize: 36,
-    fontWeight: "800",
-    color: COLORS.text,
-  },
-  balanceLabel: {
-    fontSize: 14,
-    color: COLORS.text,
-    opacity: 0.7,
-    fontWeight: "600",
-  },
-  premiumActiveBadge: {
+  // Toast
+  toast: {
+    position: "absolute",
+    top: 0,
+    left: 16,
+    right: 16,
+    zIndex: 100,
     backgroundColor: COLORS.text,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    marginTop: 8,
+    borderRadius: 14,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
   },
-  premiumActiveBadgeText: {
-    fontSize: 13,
+  toastText: {
+    fontSize: 15,
     fontWeight: "700",
     color: COLORS.primary,
   },
+  // Banners
+  premiumActiveBanner: {
+    backgroundColor: "#D1FAE5",
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#6EE7B7",
+  },
+  premiumActiveBannerText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#065F46",
+  },
+  errorBanner: {
+    backgroundColor: "rgba(248,113,113,0.1)",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: "rgba(248,113,113,0.25)",
+  },
+  errorBannerText: {
+    fontSize: 14,
+    color: COLORS.danger,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  // Sections
   section: {
-    gap: 12,
+    gap: 14,
   },
   sectionTitle: {
     fontSize: 18,
@@ -305,66 +526,130 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: COLORS.textSecondary,
     lineHeight: 18,
-    marginTop: -4,
+    marginTop: -6,
   },
-  plusCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 20,
-    padding: 20,
-    gap: 16,
-    borderWidth: 2,
-    borderColor: COLORS.primary,
-    boxShadow: "0 4px 16px rgba(255,184,48,0.15)",
-  },
-  plusCardHeader: {
+  // Plan cards
+  planRow: {
     flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    gap: 12,
   },
-  plusCardTitle: {
-    fontSize: 18,
+  planCard: {
+    flex: 1,
+    backgroundColor: COLORS.surface,
+    borderRadius: 18,
+    padding: 16,
+    alignItems: "center",
+    gap: 4,
+    borderWidth: 2,
+    borderColor: COLORS.border,
+    minHeight: 140,
+    justifyContent: "center",
+    position: "relative",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  planCardSelected: {
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primaryMuted,
+    shadowColor: COLORS.primary,
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  planCardTitle: {
+    fontSize: 16,
     fontWeight: "800",
     color: COLORS.text,
   },
-  plusCardPrice: {
-    fontSize: 16,
-    fontWeight: "700",
+  planCardPrice: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: COLORS.text,
+    marginTop: 4,
+  },
+  planCardPeriod: {
+    fontSize: 12,
     color: COLORS.textSecondary,
+    fontWeight: "500",
   },
-  plusFeaturesList: {
-    gap: 10,
+  bestBadge: {
+    position: "absolute",
+    top: -10,
+    backgroundColor: COLORS.primary,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
   },
-  plusFeatureItem: {
+  bestBadgeText: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: COLORS.text,
+  },
+  // Benefits
+  benefitsList: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 16,
+    padding: 16,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  benefitRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 12,
   },
-  plusFeatureIcon: {
+  benefitIcon: {
     fontSize: 18,
     width: 24,
     textAlign: "center",
   },
-  plusFeatureText: {
+  benefitText: {
     fontSize: 15,
     color: COLORS.text,
     fontWeight: "500",
+    flex: 1,
   },
-  plusButton: {
+  // Subscribe button
+  subscribeButton: {
     backgroundColor: COLORS.primary,
+    borderRadius: 16,
+    height: 56,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  buttonLoading: {
+    opacity: 0.7,
+  },
+  subscribeButtonText: {
+    fontSize: 17,
+    fontWeight: "800",
+    color: COLORS.text,
+  },
+  // Manage subscription
+  manageSubButton: {
+    backgroundColor: COLORS.primaryMuted,
     borderRadius: 14,
     height: 52,
     alignItems: "center",
     justifyContent: "center",
-    boxShadow: "0 4px 12px rgba(255,184,48,0.3)",
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
   },
-  plusButtonLoading: {
-    opacity: 0.7,
-  },
-  plusButtonText: {
-    fontSize: 16,
-    fontWeight: "800",
+  manageSubButtonText: {
+    fontSize: 15,
+    fontWeight: "700",
     color: COLORS.text,
   },
+  // Credit packs
   packsRow: {
     flexDirection: "row",
     gap: 10,
@@ -373,42 +658,39 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.surface,
     borderRadius: 16,
-    padding: 14,
+    padding: 12,
     alignItems: "center",
     gap: 4,
     borderWidth: 1.5,
     borderColor: COLORS.border,
-    minHeight: 110,
-    justifyContent: "center",
-    boxShadow: "0 2px 6px rgba(26,18,7,0.04)",
     position: "relative",
-    overflow: "hidden",
+    overflow: "visible",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
   },
   packCardPopular: {
     backgroundColor: COLORS.primary,
     borderColor: COLORS.primary,
-    boxShadow: "0 4px 12px rgba(255,184,48,0.3)",
+    shadowColor: COLORS.primary,
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 4,
   },
-  packCardBest: {
-    borderColor: COLORS.accent,
-    backgroundColor: COLORS.accentMuted,
-  },
-  packLabel: {
+  packBadge: {
     position: "absolute",
-    top: 6,
-    right: 6,
+    top: -10,
+    backgroundColor: COLORS.surfaceSecondary,
     borderRadius: 6,
     paddingHorizontal: 6,
     paddingVertical: 2,
-    backgroundColor: COLORS.surfaceSecondary,
   },
-  packLabelPopular: {
-    backgroundColor: "rgba(26,18,7,0.15)",
+  packBadgePopular: {
+    backgroundColor: COLORS.text,
   },
-  packLabelBest: {
-    backgroundColor: COLORS.accent,
-  },
-  packLabelText: {
+  packBadgeText: {
     fontSize: 9,
     fontWeight: "700",
     color: COLORS.text,
@@ -417,31 +699,71 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: "800",
     color: COLORS.text,
+    marginTop: 8,
   },
-  packCreditsLabel: {
-    fontSize: 18,
+  packCreditsPopular: {
+    color: COLORS.text,
+  },
+  packCreditsEmoji: {
+    fontSize: 16,
     marginTop: -4,
   },
   packPrice: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "700",
     color: COLORS.textSecondary,
-    marginTop: 4,
+    marginTop: 2,
   },
   packPricePopular: {
     color: COLORS.text,
   },
-  infoNote: {
+  packBuyButton: {
+    marginTop: 8,
     backgroundColor: COLORS.primaryMuted,
-    borderRadius: 12,
-    padding: 14,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
     borderWidth: 1,
-    borderColor: "rgba(255,184,48,0.2)",
+    borderColor: COLORS.primary,
+    minWidth: 60,
+    alignItems: "center",
   },
-  infoNoteText: {
-    fontSize: 13,
+  packBuyButtonPopular: {
+    backgroundColor: COLORS.text,
+    borderColor: COLORS.text,
+  },
+  packBuyButtonText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: COLORS.text,
+  },
+  packBuyButtonTextPopular: {
+    color: COLORS.primary,
+  },
+  // Footer
+  footer: {
+    gap: 16,
+    alignItems: "center",
+    paddingTop: 8,
+  },
+  restoreButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    minHeight: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  restoreButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
     color: COLORS.textSecondary,
-    lineHeight: 18,
+    textDecorationLine: "underline",
+  },
+  legalText: {
+    fontSize: 11,
+    color: COLORS.textTertiary,
     textAlign: "center",
+    lineHeight: 16,
+    paddingHorizontal: 8,
   },
 });

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -74,17 +74,7 @@ export default function ComplimentDetailScreen() {
 
   const flipAnim = useRef(new Animated.Value(0)).current;
 
-  useEffect(() => {
-    loadCompliment();
-  }, [id]);
-
-  useEffect(() => {
-    if (reveal === "true" && compliment && !compliment.is_revealed) {
-      handleReveal();
-    }
-  }, [reveal, compliment]);
-
-  const loadCompliment = async () => {
+  const loadCompliment = useCallback(async () => {
     console.log("[ComplimentDetail] Loading compliment:", id);
     try {
       const [detail, suggestionsRaw] = await Promise.all([
@@ -102,25 +92,9 @@ export default function ComplimentDetailScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
-  const handleGuess = async (userId: string) => {
-    console.log("[ComplimentDetail] Guess pressed for user:", userId);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setSelectedGuess(userId);
-    try {
-      const result = await authenticatedPost<{ correct: boolean }>(`/api/compliments/${id}/guess`, {
-        guessed_user_id: userId,
-      });
-      setGuessResult(result.correct ? "correct" : "incorrect");
-      console.log("[ComplimentDetail] Guess result:", result.correct ? "correct" : "incorrect");
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    } catch (err) {
-      console.log("[ComplimentDetail] Guess error:", err);
-    }
-  };
-
-  const handleReveal = async () => {
+  const handleReveal = useCallback(async () => {
     console.log("[ComplimentDetail] Reveal button pressed for compliment:", id);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setRevealing(true);
@@ -152,6 +126,33 @@ export default function ComplimentDetailScreen() {
       }
     } finally {
       setRevealing(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, router]);
+
+  useEffect(() => {
+    loadCompliment();
+  }, [loadCompliment]);
+
+  useEffect(() => {
+    if (reveal === "true" && compliment && !compliment.is_revealed) {
+      handleReveal();
+    }
+  }, [reveal, compliment, handleReveal]);
+
+  const handleGuess = async (userId: string) => {
+    console.log("[ComplimentDetail] Guess pressed for user:", userId);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSelectedGuess(userId);
+    try {
+      const result = await authenticatedPost<{ correct: boolean }>(`/api/compliments/${id}/guess`, {
+        guessed_user_id: userId,
+      });
+      setGuessResult(result.correct ? "correct" : "incorrect");
+      console.log("[ComplimentDetail] Guess result:", result.correct ? "correct" : "incorrect");
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } catch (err) {
+      console.log("[ComplimentDetail] Guess error:", err);
     }
   };
 

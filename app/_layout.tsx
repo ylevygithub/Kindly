@@ -1,7 +1,7 @@
 import "react-native-reanimated";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useFonts } from "expo-font";
-import { Stack } from "expo-router";
+import { Stack, usePathname, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { SystemBars } from "react-native-edge-to-edge";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -13,10 +13,12 @@ import {
   ThemeProvider,
 } from "@react-navigation/native";
 import { StatusBar } from "expo-status-bar";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { BadgeProvider } from "@/contexts/BadgeContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
+import { SubscriptionProvider, useSubscription } from "@/contexts/SubscriptionContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { isOnboardingComplete } from "@/utils/onboardingStorage";
 
 const DevErrorBoundary = __DEV__
   ? ErrorBoundary
@@ -27,6 +29,59 @@ SplashScreen.preventAutoHideAsync();
 export const unstable_settings = {
   initialRouteName: "(tabs)",
 };
+
+
+function SubscriptionRedirect() {
+  const { isSubscribed, loading } = useSubscription();
+  const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
+  const [onboardingDone, setOnboardingDone] = useState<boolean | null>(null);
+
+  // Re-read onboarding completion on every navigation so it stays fresh
+  // (e.g. immediately after completeOnboarding() runs).
+  useEffect(() => {
+    let cancelled = false;
+    isOnboardingComplete()
+      .then((done) => { if (!cancelled) setOnboardingDone(done); })
+      .catch(() => { if (!cancelled) setOnboardingDone(true); });
+    return () => { cancelled = true; };
+  }, [pathname]);
+
+  // SINGLE source of truth for the gated chain: auth -> onboarding -> paywall -> home.
+  // Each step redirects ONLY when the user is not already on it, which prevents
+  // redirect loops. This guard OWNS routing for authenticated users — no other
+  // guard should send them straight to home, or onboarding/paywall get skipped.
+  useEffect(() => {
+    if (loading || authLoading || onboardingDone === null) return;
+
+    const onAuthFlow =
+      pathname === "/auth" ||
+      pathname.startsWith("/auth-popup") ||
+      pathname.startsWith("/auth-callback");
+    const onOnboarding = pathname.startsWith("/onboarding");
+    const onPaywall = pathname === "/paywall";
+
+    if (!user) {
+      if (!onAuthFlow) router.replace("/auth");
+      return;
+    }
+    if (!onboardingDone) {
+      if (!onOnboarding) router.replace("/onboarding");
+      return;
+    }
+    if (!isSubscribed) {
+      if (!onPaywall) router.replace("/paywall");
+      return;
+    }
+    // Fully unlocked — if stranded on a gate screen, proceed to home.
+    if (onAuthFlow || onOnboarding || onPaywall) {
+      router.replace("/(tabs)");
+    }
+  }, [isSubscribed, loading, authLoading, onboardingDone, pathname, user, router]);
+
+  return null;
+}
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -49,6 +104,8 @@ export default function RootLayout() {
       <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
         <SafeAreaProvider>
           <AuthProvider>
+        <SubscriptionProvider>
+          <SubscriptionRedirect />
         <NotificationProvider>
             <BadgeProvider>
             <GestureHandlerRootView style={{ flex: 1 }}>
@@ -66,6 +123,7 @@ export default function RootLayout() {
             </GestureHandlerRootView>
             </BadgeProvider>
           </NotificationProvider>
+        </SubscriptionProvider>
         </AuthProvider>
         </SafeAreaProvider>
       </ThemeProvider>

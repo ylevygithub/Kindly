@@ -65,7 +65,7 @@ export default function OnboardingScreen() {
         avatar_emoji: selectedAvatar,
       });
       console.log("[Onboarding] Profile setup successful, redirecting to home");
-      router.replace("/(tabs)/(home)");
+      router.replace("/paywall");
     } catch (err: any) {
       console.log("[Onboarding] Profile setup error:", err?.message);
       if (String(err?.message).includes("409") || String(err?.message).includes("username")) {

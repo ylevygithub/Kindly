@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -42,28 +42,28 @@ export default function AuthScreen() {
   const [loadingApple, setLoadingApple] = useState(false);
   const [loadingGoogle, setLoadingGoogle] = useState(false);
 
-  useEffect(() => {
-    if (user) {
-      console.log("[Auth] User signed in, checking profile...");
-      checkProfile();
-    }
-  }, [user]);
-
-  const checkProfile = async () => {
+  const checkProfile = useCallback(async () => {
     try {
       await apiGet("/api/profiles/me");
       console.log("[Auth] Profile found, redirecting to home");
-      router.replace("/(tabs)/(home)");
+      router.replace("/onboarding");
     } catch (err: any) {
       if (err?.message?.includes("404") || String(err).includes("404")) {
         console.log("[Auth] No profile found, redirecting to onboarding");
         router.replace("/onboarding");
       } else {
         console.log("[Auth] Profile check error, redirecting to home:", err);
-        router.replace("/(tabs)/(home)");
+        router.replace("/onboarding");
       }
     }
-  };
+  }, [router]);
+
+  useEffect(() => {
+    if (user) {
+      console.log("[Auth] User signed in, checking profile...");
+      checkProfile();
+    }
+  }, [user, checkProfile]);
 
   const handleAppleSignIn = async () => {
     console.log("[Auth] Apple sign-in button pressed");

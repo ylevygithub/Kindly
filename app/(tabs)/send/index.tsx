@@ -32,6 +32,19 @@ interface SuggestedCompliment {
   text: string;
 }
 
+const CATEGORY_EMOJIS: Record<string, string[]> = {
+  Personnalité: ["🧠", "💡", "🌟", "✨", "🎭", "💫", "🦋", "🌈", "🔥", "💎", "🌺", "🎯"],
+  Look: ["✨", "💅", "👑", "🌟", "💫", "🎨", "🌸", "💎", "🪄", "🌺", "👗", "💄"],
+  Talent: ["🎯", "🏆", "🎸", "🎨", "🚀", "⭐", "🎭", "🎪", "🎬", "🎤", "🏅", "🌟"],
+  Humour: ["😂", "🤣", "😄", "🎭", "🃏", "🎪", "😆", "🤪", "😜", "🎉", "🥳", "😝"],
+  Autre: ["💛", "🌟", "✨", "💫", "🌈", "🦋", "🌺", "💝", "🌸", "🎀", "💖", "🌻"],
+};
+
+function getDefaultEmoji(category: string, index: number): string {
+  const emojis = CATEGORY_EMOJIS[category] || CATEGORY_EMOJIS["Autre"];
+  return emojis[index % emojis.length];
+}
+
 const CATEGORIES = [
   { id: "Personnalité", label: "Personnalité", icon: "🧠" },
   { id: "Look", label: "Look", icon: "✨" },
@@ -375,17 +388,23 @@ export default function SendScreen() {
               <ActivityIndicator color={COLORS.primary} />
             ) : (
               <View style={styles.suggestionsGrid}>
-                {suggestions.map((s) => {
-                  const isSelected = selectedSuggestion === s.text && !isCustom;
+                {suggestions.map((s, idx) => {
+                  const emoji = getDefaultEmoji(selectedCategory, idx);
+                  const displayText = s.text;
+                  const isSelected = selectedSuggestion === (displayText || emoji) && !isCustom;
                   return (
                     <AnimatedPressable
                       key={s.id}
-                      onPress={() => handleSelectSuggestion(s.text)}
+                      onPress={() => handleSelectSuggestion(displayText || emoji)}
                       style={[styles.suggestionCard, isSelected && styles.suggestionCardSelected]}
                     >
-                      <Text style={[styles.suggestionText, isSelected && styles.suggestionTextSelected]}>
-                        {s.text}
-                      </Text>
+                      {displayText ? (
+                        <Text style={[styles.suggestionText, isSelected && styles.suggestionTextSelected]}>
+                          {displayText}
+                        </Text>
+                      ) : (
+                        <Text style={styles.suggestionEmoji}>{emoji}</Text>
+                      )}
                     </AnimatedPressable>
                   );
                 })}
@@ -699,6 +718,10 @@ const styles = StyleSheet.create({
   suggestionTextSelected: {
     color: COLORS.text,
     fontWeight: "600",
+  },
+  suggestionEmoji: {
+    fontSize: 32,
+    textAlign: "center",
   },
   customToggle: {
     alignSelf: "flex-start",

@@ -24,7 +24,6 @@ import React, {
   ReactNode,
 } from "react";
 import { Platform } from "react-native";
-import { OneSignal, NotificationWillDisplayEvent } from "react-native-onesignal";
 import Constants from "expo-constants";
 
 // Import auth hook for user targeting (validated at setup time)
@@ -92,20 +91,31 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
       return;
     }
 
+    let OSModule: any;
     try {
+      OSModule = require("react-native-onesignal");
+    } catch (e) {
+      console.warn("[OneSignal] Native module not available:", e);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const { OneSignal: OS } = OSModule;
+
       // Initialize OneSignal
-      OneSignal.initialize(ONESIGNAL_APP_ID);
+      OS.initialize(ONESIGNAL_APP_ID);
 
       if (__DEV__) {
         console.log("[OneSignal] Initialized with App ID:", ONESIGNAL_APP_ID.substring(0, 8) + "...");
       }
 
       // Check current permission status
-      const permissionStatus = OneSignal.Notifications.hasPermission();
+      const permissionStatus = OS.Notifications.hasPermission();
       setHasPermission(permissionStatus);
 
       // Listen for notification events
-      const foregroundHandler = (event: NotificationWillDisplayEvent) => {
+      const foregroundHandler = (event: any) => {
         // Display the notification
         event.getNotification().display();
 
@@ -116,18 +126,18 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
           additionalData: notification.additionalData,
         });
       };
-      OneSignal.Notifications.addEventListener("foregroundWillDisplay", foregroundHandler);
+      OS.Notifications.addEventListener("foregroundWillDisplay", foregroundHandler);
 
       // Listen for permission changes
       const permissionHandler = (granted: boolean) => {
         setHasPermission(granted);
         setPermissionDenied(!granted);
       };
-      OneSignal.Notifications.addEventListener("permissionChange", permissionHandler);
+      OS.Notifications.addEventListener("permissionChange", permissionHandler);
 
       return () => {
-        OneSignal.Notifications.removeEventListener("foregroundWillDisplay", foregroundHandler);
-        OneSignal.Notifications.removeEventListener("permissionChange", permissionHandler);
+        OS.Notifications.removeEventListener("foregroundWillDisplay", foregroundHandler);
+        OS.Notifications.removeEventListener("permissionChange", permissionHandler);
       };
     } catch (error) {
       console.error("[OneSignal] Failed to initialize:", error);
@@ -140,14 +150,22 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
   useEffect(() => {
     if (isWeb || !ONESIGNAL_APP_ID) return;
 
+    let OSModule: any;
     try {
+      OSModule = require("react-native-onesignal");
+    } catch (e) {
+      return;
+    }
+
+    try {
+      const { OneSignal: OS } = OSModule;
       if (user?.id) {
-        OneSignal.login(user.id);
+        OS.login(user.id);
         if (__DEV__) {
           console.log("[OneSignal] Linked user ID:", user.id);
         }
       } else {
-        OneSignal.logout();
+        OS.logout();
       }
     } catch (error) {
       console.error("[OneSignal] Failed to update user:", error);
@@ -157,8 +175,16 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
   const requestPermission = useCallback(async (): Promise<boolean> => {
     if (isWeb) return false;
 
+    let OSModule: any;
     try {
-      const granted = await OneSignal.Notifications.requestPermission(true);
+      OSModule = require("react-native-onesignal");
+    } catch (e) {
+      return false;
+    }
+
+    try {
+      const { OneSignal: OS } = OSModule;
+      const granted = await OS.Notifications.requestPermission(true);
       setHasPermission(granted);
       setPermissionDenied(!granted);
       return granted;
@@ -170,8 +196,15 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
 
   const sendTag = useCallback((key: string, value: string) => {
     if (isWeb) return;
+    let OSModule: any;
     try {
-      OneSignal.User.addTag(key, value);
+      OSModule = require("react-native-onesignal");
+    } catch (e) {
+      return;
+    }
+    try {
+      const { OneSignal: OS } = OSModule;
+      OS.User.addTag(key, value);
     } catch (error) {
       console.error("[OneSignal] Failed to send tag:", error);
     }
@@ -179,8 +212,15 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
 
   const deleteTag = useCallback((key: string) => {
     if (isWeb) return;
+    let OSModule: any;
     try {
-      OneSignal.User.removeTag(key);
+      OSModule = require("react-native-onesignal");
+    } catch (e) {
+      return;
+    }
+    try {
+      const { OneSignal: OS } = OSModule;
+      OS.User.removeTag(key);
     } catch (error) {
       console.error("[OneSignal] Failed to delete tag:", error);
     }

@@ -128,9 +128,9 @@ export default function ShopScreen() {
 
   // Fallback: if no credits packs found, show static placeholders
   const staticCreditPacks = [
-    { id: "kindly_credits_small", credits: 10, label: null },
-    { id: "kindly_credits_medium", credits: 50, label: isFrench ? "Populaire" : "Popular" },
-    { id: "kindly_credits_large", credits: 100, label: null },
+    { id: "kindly_credits_small", credits: 10, label: null, discount: null },
+    { id: "kindly_credits_medium", credits: 50, label: isFrench ? "Populaire" : "Popular", discount: "-20%" },
+    { id: "kindly_credits_large", credits: 100, label: null, discount: "-40%" },
   ];
 
   const showToast = (msg: string) => {
@@ -293,6 +293,7 @@ export default function ShopScreen() {
                   }}
                   style={[
                     styles.planCard,
+                    styles.planCardMonthly,
                     selectedPlan === "monthly" && styles.planCardSelected,
                   ]}
                 >
@@ -357,6 +358,11 @@ export default function ShopScreen() {
                 const isPurchasing = purchasingId === pack.id;
                 return (
                   <View key={pack.id} style={[styles.packCard, isPopular && styles.packCardPopular]}>
+                    {pack.discount && (
+                      <View style={styles.discountBadge}>
+                        <Text style={styles.discountBadgeText}>{pack.discount}</Text>
+                      </View>
+                    )}
                     {pack.label && (
                       <View style={[styles.packBadge, isPopular && styles.packBadgePopular]}>
                         <Text style={styles.packBadgeText}>{pack.label}</Text>
@@ -535,6 +541,7 @@ const styles = StyleSheet.create({
   planRow: {
     flexDirection: "row",
     gap: 12,
+    paddingTop: 14,
   },
   planCard: {
     flex: 1,
@@ -553,6 +560,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 6,
     elevation: 2,
+  },
+  planCardMonthly: {
+    paddingTop: 14,
   },
   planCardSelected: {
     borderColor: COLORS.primary,
@@ -580,7 +590,7 @@ const styles = StyleSheet.create({
   },
   bestBadge: {
     position: "absolute",
-    top: -10,
+    top: -12,
     backgroundColor: COLORS.primary,
     borderRadius: 8,
     paddingHorizontal: 10,
@@ -667,7 +677,6 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: COLORS.border,
     position: "relative",
-    overflow: "visible",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
@@ -742,6 +751,21 @@ const styles = StyleSheet.create({
   },
   packBuyButtonTextPopular: {
     color: COLORS.primary,
+  },
+  // Discount badge
+  discountBadge: {
+    position: "absolute",
+    top: -10,
+    right: 8,
+    backgroundColor: "#D1FAE5",
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  discountBadgeText: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: "#065F46",
   },
   // Footer
   footer: {

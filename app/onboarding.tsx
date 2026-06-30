@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Linking,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -174,7 +175,17 @@ export default function OnboardingScreen() {
             {accepted && <Text style={styles.checkmark}>✓</Text>}
           </View>
           <Text style={styles.checkboxText}>
-            J'accepte les CGU et je m'engage à rester bienveillant(e). Aucun contenu insultant ou harcelant n'est toléré.
+            <Text style={{ color: COLORS.textSecondary }}>{"J'accepte les "}</Text>
+            <Text
+              style={styles.cguLink}
+              onPress={() => {
+                console.log("[Onboarding] CGU link tapped");
+                Linking.openURL("https://kindly.app/cgu");
+              }}
+            >
+              {"CGU"}
+            </Text>
+            <Text style={{ color: COLORS.textSecondary }}>{" et je m'engage à rester bienveillant(e). Aucun contenu insultant ou harcelant n'est toléré."}</Text>
           </Text>
         </AnimatedPressable>
 
@@ -331,6 +342,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.textSecondary,
     lineHeight: 20,
+  },
+  cguLink: {
+    color: COLORS.primary,
+    fontWeight: "700",
+    textDecorationLine: "underline",
   },
   submitButton: {
     backgroundColor: COLORS.primary,

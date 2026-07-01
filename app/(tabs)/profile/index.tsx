@@ -23,7 +23,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { AnimatedPressable } from "@/components/AnimatedPressable";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { useSubscription } from "@/contexts/SubscriptionContext";
-import { t, isFrench } from "@/utils/i18n";
+import { t, tf, isFrench } from "@/utils/i18n";
 
 interface Profile {
   username: string;
@@ -38,6 +38,20 @@ interface RecentUser {
   id: string;
   username: string;
   avatar_emoji: string;
+}
+
+function getStreakStage(streak: number): {
+  emoji: string;
+  labelKey: 'streak_stage_1' | 'streak_stage_7' | 'streak_stage_30' | 'streak_stage_90' | 'streak_stage_180' | 'streak_stage_365';
+  nextThreshold: number | null;
+  color: string;
+} {
+  if (streak >= 365) return { emoji: '🌳', labelKey: 'streak_stage_365', nextThreshold: null, color: '#4A7C59' };
+  if (streak >= 180) return { emoji: '🌲', labelKey: 'streak_stage_180', nextThreshold: 365, color: '#2D6A4F' };
+  if (streak >= 90)  return { emoji: '🌿', labelKey: 'streak_stage_90',  nextThreshold: 180, color: '#52B788' };
+  if (streak >= 30)  return { emoji: '🪴', labelKey: 'streak_stage_30',  nextThreshold: 90,  color: '#74C69D' };
+  if (streak >= 7)   return { emoji: '🌱', labelKey: 'streak_stage_7',   nextThreshold: 30,  color: '#95D5B2' };
+  return               { emoji: '🌱', labelKey: 'streak_stage_1',   nextThreshold: 7,   color: '#B7E4C7' };
 }
 
 function FlameIcon({ active }: { active: boolean }) {
@@ -94,6 +108,8 @@ export default function ProfileScreen() {
   const [recentUsers, setRecentUsers] = useState<RecentUser[]>([]);
   const [signingOut, setSigningOut] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
+
+  const [plantModalVisible, setPlantModalVisible] = useState(false);
 
   // Support modal state
   const [supportModalVisible, setSupportModalVisible] = useState(false);
@@ -359,6 +375,32 @@ export default function ProfileScreen() {
               <Text style={styles.statLabel}>{isFrench ? "Crédits 💛" : "Credits 💛"}</Text>
             </View>
           </View>
+
+          {/* Plant widget */}
+          {(() => {
+            const stage = getStreakStage(streak);
+            const label = t(stage.labelKey);
+            const startText = isFrench ? "Commence aujourd'hui !" : 'Start today!';
+            const subtextValue = streak > 0 ? tf('streak_plant_days', streak) : startText;
+            return (
+              <AnimatedPressable
+                onPress={() => {
+                  console.log("[Profile] Plant widget pressed, streak:", streak);
+                  setPlantModalVisible(true);
+                }}
+                style={styles.plantWidget}
+              >
+                <View style={[styles.plantEmojiContainer, { backgroundColor: stage.color + '22' }]}>
+                  <Text style={styles.plantEmoji}>{stage.emoji}</Text>
+                </View>
+                <View style={styles.plantInfo}>
+                  <Text style={styles.plantLabel}>{label}</Text>
+                  <Text style={styles.plantSubtext}>{subtextValue}</Text>
+                </View>
+                <Text style={styles.plantChevron}>›</Text>
+              </AnimatedPressable>
+            );
+          })()}
 
           {/* Kindly Plus section */}
           {!isPremium && (
@@ -627,6 +669,101 @@ export default function ProfileScreen() {
             )}
           </View>
         </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Plant info modal */}
+      <Modal
+        visible={plantModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => {
+          console.log("[Profile] Plant modal closed");
+          setPlantModalVisible(false);
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            {(() => {
+              const stage = getStreakStage(streak);
+              const label = t(stage.labelKey);
+              const stages: { threshold: number; labelKey: Parameters<typeof t>[0]; emoji: string }[] = [
+                { threshold: 1,   labelKey: 'streak_stage_1',   emoji: '🌱' },
+                { threshold: 7,   labelKey: 'streak_stage_7',   emoji: '🌱' },
+                { threshold: 30,  labelKey: 'streak_stage_30',  emoji: '🪴' },
+                { threshold: 90,  labelKey: 'streak_stage_90',  emoji: '🌿' },
+                { threshold: 180, labelKey: 'streak_stage_180', emoji: '🌲' },
+                { threshold: 365, labelKey: 'streak_stage_365', emoji: '🌳' },
+              ];
+              const day0Text = isFrench ? 'Jour 0' : 'Day 0';
+              const heroDaysText = streak > 0 ? tf('streak_plant_days', streak) : day0Text;
+              const nextText = stage.nextThreshold !== null
+                ? tf('streak_plant_next_in', stage.nextThreshold - streak)
+                : t('streak_plant_max');
+              return (
+                <>
+                  <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>{t('streak_plant_title')}</Text>
+                    <TouchableOpacity onPress={() => {
+                      console.log("[Profile] Plant modal close button pressed");
+                      setPlantModalVisible(false);
+                    }}>
+                      <Text style={styles.modalClose}>✕</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Current stage hero */}
+                  <View style={styles.plantModalHero}>
+                    <Text style={styles.plantModalEmoji}>{stage.emoji}</Text>
+                    <Text style={styles.plantModalStageName}>{label}</Text>
+                    <Text style={styles.plantModalDays}>{heroDaysText}</Text>
+                  </View>
+
+                  {/* Subtitle */}
+                  <Text style={styles.plantModalSubtitle}>{t('streak_plant_subtitle')}</Text>
+
+                  {/* All stages list */}
+                  <View style={styles.plantStagesList}>
+                    {stages.map((s) => {
+                      const isReached = streak >= s.threshold;
+                      const isCurrent = stage.labelKey === s.labelKey;
+                      const stageLabel = t(s.labelKey);
+                      const thresholdText = s.threshold === 1
+                        ? (isFrench ? 'Jour 1' : 'Day 1')
+                        : (isFrench ? `${s.threshold} jours` : `${s.threshold} days`);
+                      return (
+                        <View key={s.threshold} style={[styles.plantStageRow, isCurrent && styles.plantStageRowCurrent]}>
+                          <Text style={[styles.plantStageEmoji, !isReached && styles.plantStageDimmed]}>{s.emoji}</Text>
+                          <View style={styles.plantStageInfo}>
+                            <Text style={[styles.plantStageName, !isReached && styles.plantStageDimmed]}>{stageLabel}</Text>
+                            <Text style={styles.plantStageThreshold}>{thresholdText}</Text>
+                          </View>
+                          {isReached && <Text style={styles.plantStageCheck}>✓</Text>}
+                        </View>
+                      );
+                    })}
+                  </View>
+
+                  {/* Next stage info */}
+                  <Text style={styles.plantNextText}>{nextText}</Text>
+
+                  {/* Warning */}
+                  <Text style={styles.plantMissText}>{t('streak_plant_miss')}</Text>
+
+                  {/* Close button */}
+                  <AnimatedPressable
+                    onPress={() => {
+                      console.log("[Profile] Plant modal close button (bottom) pressed");
+                      setPlantModalVisible(false);
+                    }}
+                    style={styles.plantCloseButton}
+                  >
+                    <Text style={styles.plantCloseButtonText}>{t('streak_plant_close')}</Text>
+                  </AnimatedPressable>
+                </>
+              );
+            })()}
+          </View>
+        </View>
       </Modal>
     </View>
   );
@@ -1045,5 +1182,140 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     textAlign: "center",
     lineHeight: 24,
+  },
+  // Plant widget
+  plantWidget: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.surface,
+    borderRadius: 16,
+    padding: 14,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  plantEmojiContainer: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  plantEmoji: {
+    fontSize: 28,
+  },
+  plantInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  plantLabel: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  plantSubtext: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+  },
+  plantChevron: {
+    fontSize: 20,
+    color: COLORS.textTertiary,
+  },
+  // Plant modal
+  plantModalHero: {
+    alignItems: 'center',
+    paddingVertical: 16,
+    gap: 4,
+  },
+  plantModalEmoji: {
+    fontSize: 56,
+  },
+  plantModalStageName: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: COLORS.text,
+    marginTop: 4,
+  },
+  plantModalDays: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    fontWeight: '500',
+  },
+  plantModalSubtitle: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+    paddingHorizontal: 8,
+  },
+  plantStagesList: {
+    gap: 8,
+    marginTop: 4,
+  },
+  plantStageRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: COLORS.surfaceSecondary,
+  },
+  plantStageRowCurrent: {
+    backgroundColor: COLORS.primaryMuted,
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+  },
+  plantStageEmoji: {
+    fontSize: 22,
+    width: 28,
+    textAlign: 'center',
+  },
+  plantStageDimmed: {
+    opacity: 0.35,
+  },
+  plantStageInfo: {
+    flex: 1,
+  },
+  plantStageName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  plantStageThreshold: {
+    fontSize: 11,
+    color: COLORS.textTertiary,
+  },
+  plantStageCheck: {
+    fontSize: 14,
+    color: COLORS.primary,
+    fontWeight: '800',
+  },
+  plantNextText: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  plantMissText: {
+    fontSize: 12,
+    color: COLORS.textTertiary,
+    textAlign: 'center',
+    lineHeight: 18,
+    paddingHorizontal: 8,
+  },
+  plantCloseButton: {
+    backgroundColor: COLORS.primary,
+    borderRadius: 14,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  plantCloseButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.text,
   },
 });

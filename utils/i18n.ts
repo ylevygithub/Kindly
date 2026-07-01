@@ -129,6 +129,23 @@ const translations = {
     send_cancel: 'Annuler',
     send_oops: '💛 Oups !',
     send_inviteSms: "Rejoins-moi sur Kindly, l'app pour envoyer des compliments anonymes ! 💛",
+
+    // Streak plant widget
+    streak_stage_1: 'Naissance',
+    streak_stage_7: 'Éveil',
+    streak_stage_30: 'Croissance',
+    streak_stage_90: 'Éclosion',
+    streak_stage_180: 'Plénitude',
+    streak_stage_365: 'Sagesse',
+    streak_plant_title: 'Ta plante Kindly',
+    streak_plant_subtitle: "Ouvre l'app chaque jour pour la faire grandir",
+    streak_plant_current: 'Stade actuel',
+    streak_plant_next: 'Prochain stade',
+    streak_plant_days: (n: number) => `${n} jour${n > 1 ? 's' : ''} consécutif${n > 1 ? 's' : ''}`,
+    streak_plant_next_in: (n: number) => `Dans ${n} jour${n > 1 ? 's' : ''}`,
+    streak_plant_miss: 'Si tu manques un jour, ta plante repart de zéro.',
+    streak_plant_max: 'Tu as atteint le stade maximum ! 🎉',
+    streak_plant_close: 'Fermer',
   },
   en: {
     // App-wide
@@ -247,6 +264,23 @@ const translations = {
     send_cancel: 'Cancel',
     send_oops: '💛 Oops!',
     send_inviteSms: 'Join me on Kindly, the app for sending anonymous compliments! 💛',
+
+    // Streak plant widget
+    streak_stage_1: 'Sprout',
+    streak_stage_7: 'Awakening',
+    streak_stage_30: 'Growing',
+    streak_stage_90: 'Blooming',
+    streak_stage_180: 'Thriving',
+    streak_stage_365: 'Ancient',
+    streak_plant_title: 'Your Kindly Plant',
+    streak_plant_subtitle: 'Open the app every day to help it grow',
+    streak_plant_current: 'Current stage',
+    streak_plant_next: 'Next stage',
+    streak_plant_days: (n: number) => `${n} consecutive day${n > 1 ? 's' : ''}`,
+    streak_plant_next_in: (n: number) => `In ${n} day${n > 1 ? 's' : ''}`,
+    streak_plant_miss: 'If you miss a day, your plant resets to zero.',
+    streak_plant_max: "You've reached the maximum stage! 🎉",
+    streak_plant_close: 'Close',
   },
 } as const;
 

@@ -15,7 +15,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { COLORS } from "@/constants/Colors";
 import { authenticatedGet, authenticatedPost } from "@/utils/api";
-import { useSubscription } from "@/contexts/SubscriptionContext";
 import { AnimatedPressable } from "@/components/AnimatedPressable";
 import { useLanguage } from "@/contexts/LanguageContext";
 import ConfettiAnimation, { ConfettiRef } from "@/components/ConfettiAnimation";
@@ -65,7 +64,6 @@ export default function ComplimentDetailScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const confettiRef = useRef<ConfettiRef>(null);
-  const { isSubscribed } = useSubscription();
   const { lang } = useLanguage();
 
   const [compliment, setCompliment] = useState<ComplimentDetail | null>(null);
@@ -99,38 +97,28 @@ export default function ComplimentDetailScreen() {
   }, [id]);
 
   const handleReveal = useCallback(async () => {
-    console.log("[ComplimentDetail] Reveal button pressed for compliment:", id, "isSubscribed:", isSubscribed);
-    if (!isSubscribed) {
-      console.log("[ComplimentDetail] User not subscribed, redirecting to paywall");
-      router.push("/paywall");
-      return;
-    }
+    console.log("[ComplimentDetail] Reveal button pressed for compliment:", id);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setRevealing(true);
     try {
-      const result = await authenticatedPost<ComplimentDetail>(`/api/compliments/${id}/reveal`, {});
+      const result = await authenticatedPost<any>(`/api/compliments/${id}/reveal`, {});
       // Flip animation
       Animated.sequence([
         Animated.timing(flipAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
         Animated.timing(flipAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
       ]).start();
-      setCompliment(result);
+      setCompliment(prev => prev ? { ...prev, is_revealed: true, sender: result.sender } : prev);
       confettiRef.current?.trigger();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       console.log("[ComplimentDetail] Reveal successful, sender:", result.sender?.username);
     } catch (err: any) {
-      console.log("[ComplimentDetail] Reveal error:", err?.message);
-      const msg = String(err?.message || "");
-      if (msg.includes("credits") || msg.includes("insufficient")) {
-        Alert.alert(
-          "Crédits insuffisants",
-          "Tu n'as pas assez de crédits 💛 pour révéler cet expéditeur.",
-          [
-            { text: "Annuler", style: "cancel" },
-            { text: "Acheter des crédits", onPress: () => router.push("/shop") },
-          ]
-        );
+      const status = err?.status ?? err?.response?.status;
+      const body = err?.body ?? err?.data ?? err;
+      if (status === 402 || body?.error === 'insufficient_credits') {
+        console.log("[ComplimentDetail] Insufficient credits, redirecting to paywall");
+        router.push("/paywall");
       } else {
+        console.log("[ComplimentDetail] Reveal error:", err);
         Alert.alert("Erreur", "Impossible de révéler l'expéditeur.");
       }
     } finally {
@@ -145,14 +133,9 @@ export default function ComplimentDetailScreen() {
 
   useEffect(() => {
     if (reveal === "true" && compliment && !compliment.is_revealed) {
-      if (!isSubscribed) {
-        console.log("[ComplimentDetail] reveal=true but user not subscribed, redirecting to paywall");
-        router.replace("/paywall");
-        return;
-      }
       handleReveal();
     }
-  }, [reveal, compliment, handleReveal, isSubscribed, router]);
+  }, [reveal, compliment, handleReveal]);
 
   const handleGuess = async (userId: string) => {
     console.log("[ComplimentDetail] Guess pressed for user:", userId);

@@ -9,14 +9,13 @@ import {
   Animated,
   ActivityIndicator,
 } from "react-native";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { COLORS } from "@/constants/Colors";
-import { authenticatedGet } from "@/utils/api";
+import { authenticatedGet, authenticatedPost } from "@/utils/api";
 import { useAuth } from "@/contexts/AuthContext";
-import { useSubscription } from "@/contexts/SubscriptionContext";
 import ConfettiAnimation, { ConfettiRef } from "@/components/ConfettiAnimation";
 import { AnimatedPressable } from "@/components/AnimatedPressable";
 import { NotificationBell } from "@/components/NotificationBell";
@@ -167,19 +166,17 @@ function ComplimentCard({ item, index, onReveal }: { item: Compliment; index: nu
 
 export default function HomeScreen() {
   const { user } = useAuth();
-  const { isSubscribed } = useSubscription();
   const router = useRouter();
-  const { paywallDismissed } = useLocalSearchParams<{ paywallDismissed?: string }>();
   const insets = useSafeAreaInsets();
   const { lang, setLang } = useLanguage();
   const tl = (key: Parameters<typeof tfl>[0]) => tfl(key, lang);
   const [renderKey, setRenderKey] = useState(0);
   const [compliments, setCompliments] = useState<Compliment[]>([]);
+  const [credits, setCredits] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const confettiRef = useRef<ConfettiRef>(null);
   const prevCountRef = useRef(0);
-  const paywallDismissedRef = useRef(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -187,32 +184,37 @@ export default function HomeScreen() {
     }, [])
   );
 
-  // When returning from paywall with dismissed flag, mark it
-  useEffect(() => {
-    if (paywallDismissed === '1') {
-      console.log("[Home] Paywall was dismissed — setting paywallDismissedRef");
-      paywallDismissedRef.current = true;
-    }
-  }, [paywallDismissed]);
-
-  const handleReveal = useCallback((id: string) => {
-    console.log("[Home] Révéler pressed for compliment:", id, "isSubscribed:", isSubscribed);
-    if (!isSubscribed) {
-      if (paywallDismissedRef.current) {
-        console.log("[Home] Paywall already dismissed this session — skipping");
-        return;
+  const handleReveal = useCallback(async (id: string) => {
+    console.log("[Home] Révéler pressed for compliment:", id);
+    try {
+      const result = await authenticatedPost<any>(`/api/compliments/${id}/reveal`, {});
+      console.log("[Home] Reveal success for compliment:", id, "sender:", result.sender?.username);
+      setCompliments(prev => prev.map(c =>
+        c.id === id ? { ...c, is_revealed: true, sender: result.sender } : c
+      ));
+      if (result.credits_remaining !== undefined) {
+        setCredits(result.credits_remaining);
+        console.log("[Home] Credits remaining after reveal:", result.credits_remaining);
       }
-      console.log("[Home] User not subscribed, redirecting to paywall");
-      router.push("/paywall");
-      return;
+    } catch (err: any) {
+      const status = err?.status ?? err?.response?.status;
+      const body = err?.body ?? err?.data ?? err;
+      if (status === 402 || body?.error === 'insufficient_credits') {
+        console.log("[Home] Insufficient credits, redirecting to paywall");
+        router.push("/paywall");
+      } else {
+        console.log("[Home] Reveal error:", err);
+      }
     }
-    router.push(`/compliment/${id}?reveal=true`);
-  }, [isSubscribed, router]);
+  }, [router]);
 
   const fetchCompliments = useCallback(async (isRefresh = false) => {
     console.log("[Home] Fetching compliments, isRefresh:", isRefresh);
     try {
-      const data = await authenticatedGet<any>("/api/compliments");
+      const [data, profile] = await Promise.all([
+        authenticatedGet<any>("/api/compliments"),
+        authenticatedGet<any>("/api/profile"),
+      ]);
       const arr: Compliment[] = Array.isArray(data) ? data : ((data as any)?.compliments || []);
       const newCount = arr.length;
       if (isRefresh && newCount > prevCountRef.current && prevCountRef.current > 0) {
@@ -222,6 +224,10 @@ export default function HomeScreen() {
       }
       prevCountRef.current = newCount;
       setCompliments(arr);
+      if (profile?.credits !== undefined) {
+        setCredits(profile.credits);
+        console.log("[Home] Credits loaded:", profile.credits);
+      }
     } catch (err) {
       console.log("[Home] Error fetching compliments:", err);
     } finally {

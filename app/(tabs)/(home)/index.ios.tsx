@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { COLORS } from "@/constants/Colors";
@@ -19,7 +20,8 @@ import { useSubscription } from "@/contexts/SubscriptionContext";
 import ConfettiAnimation, { ConfettiRef } from "@/components/ConfettiAnimation";
 import { AnimatedPressable } from "@/components/AnimatedPressable";
 import { NotificationBell } from "@/components/NotificationBell";
-import { t, tf, CATEGORY_DISPLAY } from "@/utils/i18n";
+import { tfl, CATEGORY_DISPLAY } from "@/utils/i18n";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface Compliment {
   id: string;
@@ -33,7 +35,7 @@ interface Compliment {
   };
 }
 
-function getRelativeTime(dateStr: string): string {
+function getRelativeTime(dateStr: string, lang: 'fr' | 'en'): string {
   const now = new Date();
   const date = new Date(dateStr);
   const diffMs = now.getTime() - date.getTime();
@@ -41,11 +43,11 @@ function getRelativeTime(dateStr: string): string {
   const diffHours = Math.floor(diffMins / 60);
   const diffDays = Math.floor(diffHours / 24);
 
-  if (diffMins < 1) return t('home_justNow');
-  if (diffMins < 60) return tf('home_minutesAgo', diffMins);
-  if (diffHours < 24) return tf('home_hoursAgo', diffHours);
-  if (diffDays === 1) return t('home_yesterday');
-  return tf('home_daysAgo', diffDays);
+  if (diffMins < 1) return tfl('home_justNow', lang);
+  if (diffMins < 60) return tfl('home_minutesAgo', lang, diffMins);
+  if (diffHours < 24) return tfl('home_hoursAgo', lang, diffHours);
+  if (diffDays === 1) return tfl('home_yesterday', lang);
+  return tfl('home_daysAgo', lang, diffDays);
 }
 
 function AnimatedListItem({ index, children }: { index: number; children: React.ReactNode }) {
@@ -104,8 +106,10 @@ function SkeletonCard() {
 
 function ComplimentCard({ item, index, onReveal }: { item: Compliment; index: number; onReveal: (id: string) => void }) {
   const router = useRouter();
+  const { lang } = useLanguage();
+  const tl = (key: Parameters<typeof tfl>[0]) => tfl(key, lang);
   const categoryIcon = CATEGORY_DISPLAY[item.category] || "💛";
-  const relativeTime = getRelativeTime(item.created_at);
+  const relativeTime = getRelativeTime(item.created_at, lang);
 
   const handleGuess = () => {
     console.log("[Home] Deviner qui pressed for compliment:", item.id);
@@ -138,21 +142,21 @@ function ComplimentCard({ item, index, onReveal }: { item: Compliment; index: nu
               <Text style={styles.senderAvatar}>{item.sender.avatar_emoji}</Text>
               <Text style={styles.senderUsername}>{item.sender.username}</Text>
               <View style={styles.revealedBadge}>
-                <Text style={styles.revealedBadgeText}>{t('home_revealed')}</Text>
+                <Text style={styles.revealedBadgeText}>{tl('home_revealed')}</Text>
               </View>
             </View>
           ) : (
             <View style={styles.revealedBadge}>
-              <Text style={styles.revealedBadgeText}>{t('home_revealed')}</Text>
+              <Text style={styles.revealedBadgeText}>{tl('home_revealed')}</Text>
             </View>
           )
         ) : (
           <View style={styles.cardActions}>
             <AnimatedPressable onPress={handleGuess} style={styles.guessButton}>
-              <Text style={styles.guessButtonText}>{t('home_guess')}</Text>
+              <Text style={styles.guessButtonText}>{tl('home_guess')}</Text>
             </AnimatedPressable>
             <AnimatedPressable onPress={handleReveal} style={styles.revealButton}>
-              <Text style={styles.revealButtonText}>{t('home_reveal')}</Text>
+              <Text style={styles.revealButtonText}>{tl('home_reveal')}</Text>
             </AnimatedPressable>
           </View>
         )}
@@ -167,12 +171,21 @@ export default function HomeScreen() {
   const router = useRouter();
   const { paywallDismissed } = useLocalSearchParams<{ paywallDismissed?: string }>();
   const insets = useSafeAreaInsets();
+  const { lang, setLang } = useLanguage();
+  const tl = (key: Parameters<typeof tfl>[0]) => tfl(key, lang);
+  const [renderKey, setRenderKey] = useState(0);
   const [compliments, setCompliments] = useState<Compliment[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const confettiRef = useRef<ConfettiRef>(null);
   const prevCountRef = useRef(0);
   const paywallDismissedRef = useRef(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      setRenderKey(k => k + 1);
+    }, [])
+  );
 
   // When returning from paywall with dismissed flag, mark it
   useEffect(() => {
@@ -228,23 +241,38 @@ export default function HomeScreen() {
   };
 
   const totalCount = compliments.length;
+  const appNameText = tl('appName');
+  const noComplimentsText = tl('home_noCompliments');
+  const noComplimentsSubtitleText = tl('home_noComplimentsSubtitle');
+  const langToggleFlag = lang === 'fr' ? '🇫🇷' : '🇬🇧';
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View key={renderKey} style={[styles.container, { paddingTop: insets.top }]}>
       <ConfettiAnimation ref={confettiRef} />
 
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Text style={styles.headerTitle}>{t('appName')}</Text>
-                <NotificationBell />
-        
-</View>
-        {totalCount > 0 && (
-          <View style={styles.countBadge}>
-            <Text style={styles.countBadgeText}>{totalCount}</Text>
-          </View>
-        )}
+          <Text style={styles.headerTitle}>{appNameText}</Text>
+          <NotificationBell />
+        </View>
+        <View style={styles.headerRight}>
+          {totalCount > 0 && (
+            <View style={styles.countBadge}>
+              <Text style={styles.countBadgeText}>{totalCount}</Text>
+            </View>
+          )}
+          <TouchableOpacity
+            onPress={() => {
+              const next = lang === 'fr' ? 'en' : 'fr';
+              console.log("[Home] Language toggled to:", next);
+              setLang(next);
+            }}
+            style={styles.langToggle}
+          >
+            <Text style={styles.langToggleText}>{langToggleFlag}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {loading ? (
@@ -256,8 +284,8 @@ export default function HomeScreen() {
           <View style={styles.emptyIconCircle}>
             <Text style={styles.emptyIcon}>🌱</Text>
           </View>
-          <Text style={styles.emptyTitle}>{t('home_noCompliments')}</Text>
-          <Text style={styles.emptySubtitle}>{t('home_noComplimentsSubtitle')}</Text>
+          <Text style={styles.emptyTitle}>{noComplimentsText}</Text>
+          <Text style={styles.emptySubtitle}>{noComplimentsSubtitleText}</Text>
         </View>
       ) : (
         <FlatList
@@ -300,6 +328,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+  },
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  langToggle: {
+    padding: 4,
+  },
+  langToggleText: {
+    fontSize: 22,
   },
   headerTitle: {
     fontSize: 26,

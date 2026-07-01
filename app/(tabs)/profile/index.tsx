@@ -757,9 +757,9 @@ export default function ProfileScreen() {
                 { threshold: 365, labelKey: 'streak_stage_365', emoji: '🌳' },
               ];
               const day0Text = lang === 'fr' ? 'Jour 0' : 'Day 0';
-              const heroDaysText = streak > 0 ? tf('streak_plant_days', streak) : day0Text;
+              const heroDaysText = streak > 0 ? tfl('streak_plant_days', lang, streak) : day0Text;
               const nextText = stage.nextThreshold !== null
-                ? tf('streak_plant_next_in', stage.nextThreshold - streak)
+                ? tfl('streak_plant_next_in', lang, stage.nextThreshold - streak)
                 : tl('streak_plant_max');
               return (
                 <>

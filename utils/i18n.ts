@@ -313,6 +313,13 @@ export function tDailyCount(sent: number, limit: number, lang: 'fr' | 'en'): str
   return val(sent, limit);
 }
 
+// For translations keyed by explicit locale with optional numeric arg
+export function tfl(key: TranslationKey, lang: 'fr' | 'en', n?: number): string {
+  const val = translations[lang][key] as TranslationValue;
+  if (typeof val === 'function') return (val as (n: number) => string)(n ?? 0);
+  return val;
+}
+
 // Category display map — handles both FR and EN backend values
 export const CATEGORY_DISPLAY: Record<string, string> = {
   'Personnalité': '🧠',

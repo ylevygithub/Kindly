@@ -9,7 +9,7 @@ import {
   Animated,
   ActivityIndicator,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { COLORS } from "@/constants/Colors";
@@ -102,9 +102,8 @@ function SkeletonCard() {
   );
 }
 
-function ComplimentCard({ item, index }: { item: Compliment; index: number }) {
+function ComplimentCard({ item, index, onReveal }: { item: Compliment; index: number; onReveal: (id: string) => void }) {
   const router = useRouter();
-  const { isSubscribed } = useSubscription();
   const categoryIcon = CATEGORY_DISPLAY[item.category] || "💛";
   const relativeTime = getRelativeTime(item.created_at);
 
@@ -114,13 +113,7 @@ function ComplimentCard({ item, index }: { item: Compliment; index: number }) {
   };
 
   const handleReveal = () => {
-    console.log("[Home] Révéler pressed for compliment:", item.id, "isSubscribed:", isSubscribed);
-    if (!isSubscribed) {
-      console.log("[Home] User not subscribed, redirecting to paywall");
-      router.push("/paywall");
-      return;
-    }
-    router.push(`/compliment/${item.id}?reveal=true`);
+    onReveal(item.id);
   };
 
   return (
@@ -170,12 +163,38 @@ function ComplimentCard({ item, index }: { item: Compliment; index: number }) {
 
 export default function HomeScreen() {
   const { user } = useAuth();
+  const { isSubscribed } = useSubscription();
+  const router = useRouter();
+  const { paywallDismissed } = useLocalSearchParams<{ paywallDismissed?: string }>();
   const insets = useSafeAreaInsets();
   const [compliments, setCompliments] = useState<Compliment[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const confettiRef = useRef<ConfettiRef>(null);
   const prevCountRef = useRef(0);
+  const paywallDismissedRef = useRef(false);
+
+  // When returning from paywall with dismissed flag, mark it
+  useEffect(() => {
+    if (paywallDismissed === '1') {
+      console.log("[Home] Paywall was dismissed — setting paywallDismissedRef");
+      paywallDismissedRef.current = true;
+    }
+  }, [paywallDismissed]);
+
+  const handleReveal = useCallback((id: string) => {
+    console.log("[Home] Révéler pressed for compliment:", id, "isSubscribed:", isSubscribed);
+    if (!isSubscribed) {
+      if (paywallDismissedRef.current) {
+        console.log("[Home] Paywall already dismissed this session — skipping");
+        return;
+      }
+      console.log("[Home] User not subscribed, redirecting to paywall");
+      router.push("/paywall");
+      return;
+    }
+    router.push(`/compliment/${id}?reveal=true`);
+  }, [isSubscribed, router]);
 
   const fetchCompliments = useCallback(async (isRefresh = false) => {
     console.log("[Home] Fetching compliments, isRefresh:", isRefresh);
@@ -245,7 +264,7 @@ export default function HomeScreen() {
           data={compliments}
           keyExtractor={(item) => item.id}
           renderItem={({ item, index }) => (
-            <ComplimentCard item={item} index={index} />
+            <ComplimentCard item={item} index={index} onReveal={handleReveal} />
           )}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}

@@ -19,7 +19,8 @@ import { authenticatedGet, authenticatedPost } from "@/utils/api";
 import { AnimatedPressable } from "@/components/AnimatedPressable";
 import ConfettiAnimation, { ConfettiRef } from "@/components/ConfettiAnimation";
 import { notifyComplimentRecipient } from "@/utils/notifications";
-import { locale, tForLang, tDailyCount } from "@/utils/i18n";
+import { tfl } from "@/utils/i18n";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface Contact {
   id: string;
@@ -69,9 +70,9 @@ export default function SendScreen() {
   const confettiRef = useRef<ConfettiRef>(null);
   const { refreshBadge } = useBadge();
 
-  const [lang, setLang] = useState<"fr" | "en">(locale);
+  const { lang, setLang } = useLanguage();
 
-  const tl = (key: Parameters<typeof tForLang>[0]) => tForLang(key, lang);
+  const tl = (key: Parameters<typeof tfl>[0]) => tfl(key, lang);
 
   const [step, setStep] = useState<Step>(1);
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -245,7 +246,12 @@ export default function SendScreen() {
   const canSend = !!selectedContact && !!complimentText.trim() && !sending;
 
   const langFlag = lang === "fr" ? "🇫🇷" : "🇬🇧";
-  const dailyCounterLabel = tDailyCount(dailyCount, dailyLimit, lang);
+  const dailyCounterLabel = (() => {
+    const fn = lang === 'fr'
+      ? (s: number, l: number) => `${s}/${l} envois aujourd'hui`
+      : (s: number, l: number) => `${s}/${l} sent today`;
+    return fn(dailyCount, dailyLimit);
+  })();
   const successToastLabel = tl("send_success");
   const headerTitleLabel = tl("send_title");
   const step1Label = tl("send_step1");
@@ -402,7 +408,7 @@ export default function SendScreen() {
                 {CATEGORIES.map((cat) => {
                   const isSelected = selectedCategory === cat.id;
                   const catKey = CAT_KEY_MAP[cat.id];
-                  const catLabel = catKey ? tForLang(catKey, lang) : cat.id;
+                  const catLabel = catKey ? tfl(catKey, lang) : cat.id;
                   return (
                     <AnimatedPressable
                       key={cat.id}

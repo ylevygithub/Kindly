@@ -14,6 +14,8 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Image,
+  ImageSourcePropType,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -23,11 +25,20 @@ import { useAuth } from "@/contexts/AuthContext";
 import { AnimatedPressable } from "@/components/AnimatedPressable";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { useSubscription } from "@/contexts/SubscriptionContext";
-import { t, tf, isFrench, locale, tForLang } from "@/utils/i18n";
+import { t, tf, tfl } from "@/utils/i18n";
+import { useLanguage } from "@/contexts/LanguageContext";
+import * as ImagePicker from "expo-image-picker";
+
+function resolveImageSource(source: string | number | ImageSourcePropType | undefined): ImageSourcePropType {
+  if (!source) return { uri: '' };
+  if (typeof source === 'string') return { uri: source };
+  return source as ImageSourcePropType;
+}
 
 interface Profile {
   username: string;
   avatar_emoji: string;
+  avatar_url?: string;
   is_premium: boolean;
   credits: number;
   streak: number;
@@ -100,6 +111,7 @@ export default function ProfileScreen() {
   const { user, signOut } = useAuth();
   const { hasPermission } = useNotifications();
   const { isSubscribed } = useSubscription();
+  const { lang, setLang } = useLanguage();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -108,11 +120,11 @@ export default function ProfileScreen() {
   const [recentUsers, setRecentUsers] = useState<RecentUser[]>([]);
   const [signingOut, setSigningOut] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
+  const [avatarUri, setAvatarUri] = useState<string | null>(null);
 
   const [plantModalVisible, setPlantModalVisible] = useState(false);
 
-  const [lang, setLang] = useState<'fr' | 'en'>(locale);
-  const tl = (key: Parameters<typeof tForLang>[0]) => tForLang(key, lang);
+  const tl = (key: Parameters<typeof tfl>[0]) => tfl(key, lang);
 
   // Support modal state
   const [supportModalVisible, setSupportModalVisible] = useState(false);
@@ -131,11 +143,40 @@ export default function ProfileScreen() {
     try {
       const data = await authenticatedGet<Profile>("/api/profiles/me");
       setProfile(data);
+      if (data.avatar_url) setAvatarUri(data.avatar_url);
       console.log("[Profile] Profile loaded:", data.username);
     } catch (err) {
       console.log("[Profile] Error loading profile:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAvatarPress = async () => {
+    console.log("[Profile] Avatar pressed — opening image picker");
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+      base64: true,
+    });
+    if (!result.canceled && result.assets[0]) {
+      const asset = result.assets[0];
+      const base64 = asset.base64;
+      if (base64) {
+        console.log("[Profile] Avatar image selected, uploading...");
+        try {
+          const response = await authenticatedPost<{ avatar_url: string }>('/api/profile/avatar', { avatar_base64: base64 });
+          if (response?.avatar_url) {
+            console.log("[Profile] Avatar uploaded successfully:", response.avatar_url);
+            setAvatarUri(response.avatar_url);
+          }
+        } catch (e) {
+          console.log("[Profile] Avatar upload failed, using local URI:", e);
+          setAvatarUri(asset.uri);
+        }
+      }
     }
   };
 
@@ -324,6 +365,7 @@ export default function ProfileScreen() {
         >
           <Text style={styles.langToggleText}>{lang === 'fr' ? '🇫🇷' : '🇬🇧'}</Text>
         </TouchableOpacity>
+
       </View>
 
       {loading ? (
@@ -335,9 +377,16 @@ export default function ProfileScreen() {
         >
           {/* Avatar + username */}
           <View style={styles.profileHero}>
-            <View style={styles.avatarCircle}>
-              <Text style={styles.avatarEmoji}>{profile?.avatar_emoji || "😊"}</Text>
-            </View>
+            <TouchableOpacity onPress={handleAvatarPress} style={styles.avatarCircle}>
+              {avatarUri ? (
+                <Image source={resolveImageSource(avatarUri)} style={styles.avatarImage} />
+              ) : (
+                <Text style={styles.avatarEmoji}>{profile?.avatar_emoji || "😊"}</Text>
+              )}
+              <View style={styles.avatarEditBadge}>
+                <Text style={styles.avatarEditBadgeText}>✏️</Text>
+              </View>
+            </TouchableOpacity>
             <View style={styles.profileInfo}>
               <View style={styles.usernameRow}>
                 <Text style={styles.username}>{profile?.username || user?.name || "Utilisateur"}</Text>
@@ -835,6 +884,27 @@ const styles = StyleSheet.create({
   },
   avatarEmoji: {
     fontSize: 40,
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 999,
+  },
+  avatarEditBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: '#FFF',
+    borderRadius: 10,
+    width: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  avatarEditBadgeText: {
+    fontSize: 10,
   },
   profileInfo: {
     flex: 1,

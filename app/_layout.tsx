@@ -14,6 +14,7 @@ import {
 } from "@react-navigation/native";
 import { StatusBar } from "expo-status-bar";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { LanguageProvider } from "@/contexts/LanguageContext";
 import { BadgeProvider } from "@/contexts/BadgeContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { SubscriptionProvider, useSubscription } from "@/contexts/SubscriptionContext";
@@ -99,6 +100,7 @@ export default function RootLayout() {
       <StatusBar style="auto" animated />
       <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
         <SafeAreaProvider>
+          <LanguageProvider>
           <AuthProvider>
         <SubscriptionProvider>
           <SubscriptionRedirect />
@@ -121,6 +123,7 @@ export default function RootLayout() {
           </NotificationProvider>
         </SubscriptionProvider>
         </AuthProvider>
+          </LanguageProvider>
         </SafeAreaProvider>
       </ThemeProvider>
     </DevErrorBoundary>

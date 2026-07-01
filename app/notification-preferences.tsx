@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { COLORS } from "@/constants/Colors";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const NOTIFICATION_CATEGORIES = [
   {
@@ -45,6 +46,7 @@ const NOTIFICATION_CATEGORIES = [
 export default function NotificationPreferencesScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { lang } = useLanguage();
   const { hasPermission, permissionDenied, isWeb, requestPermission, sendTag, deleteTag } =
     useNotifications();
 

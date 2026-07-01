@@ -16,7 +16,8 @@ import { COLORS } from "@/constants/Colors";
 import { useSubscription } from "@/contexts/SubscriptionContext";
 import { AnimatedPressable } from "@/components/AnimatedPressable";
 import Purchases, { PurchasesPackage } from "react-native-purchases";
-import { t, isFrench } from "@/utils/i18n";
+import { tfl } from "@/utils/i18n";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 // ─── Skeleton ────────────────────────────────────────────────────────────────
 function SkeletonBlock({ width, height, style }: { width?: number | string; height: number; style?: object }) {
@@ -97,6 +98,8 @@ function Toast({ message, visible }: { message: string; visible: boolean }) {
 export default function ShopScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { lang, setLang } = useLanguage();
+  const isFr = lang === 'fr';
   const { packages, loading, isSubscribed, purchasePackage, restorePurchases, isWeb } = useSubscription();
 
   const [selectedPlan, setSelectedPlan] = useState<"monthly" | "annual">("annual");
@@ -129,7 +132,7 @@ export default function ShopScreen() {
   // Fallback: if no credits packs found, show static placeholders
   const staticCreditPacks = [
     { id: "kindly_credits_small", credits: 10, label: null, discount: null },
-    { id: "kindly_credits_medium", credits: 50, label: isFrench ? "Populaire" : "Popular", discount: "-20%" },
+    { id: "kindly_credits_medium", credits: 50, label: isFr ? "Populaire" : "Popular", discount: "-20%" },
     { id: "kindly_credits_large", credits: 100, label: null, discount: "-40%" },
   ];
 
@@ -143,7 +146,7 @@ export default function ShopScreen() {
     const pkg = selectedPlan === "monthly" ? monthlyPkg : annualPkg;
     if (!pkg) {
       console.log("[Shop] Subscribe pressed but no package found for plan:", selectedPlan);
-      setErrorMessage(isFrench ? "Abonnement non disponible pour le moment." : "Subscription not available at the moment.");
+      setErrorMessage(isFr ? "Abonnement non disponible pour le moment." : "Subscription not available at the moment.");
       return;
     }
     console.log("[Shop] Subscribe button pressed, plan:", selectedPlan, "package:", pkg.identifier);
@@ -154,13 +157,13 @@ export default function ShopScreen() {
       if (success) {
         console.log("[Shop] Subscription purchase successful:", selectedPlan);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        showToast(isFrench ? "Achat réussi ! 💛" : "Purchase successful! 💛");
+        showToast(isFr ? "Achat réussi ! 💛" : "Purchase successful! 💛");
       } else {
         console.log("[Shop] Subscription purchase cancelled or failed:", selectedPlan);
       }
     } catch (err: any) {
       console.log("[Shop] Subscription purchase error:", err?.message);
-      setErrorMessage(isFrench ? "L'achat a échoué. Réessaie." : "Purchase failed. Please try again.");
+      setErrorMessage(isFr ? "L'achat a échoué. Réessaie." : "Purchase failed. Please try again.");
     } finally {
       setPurchasingId(null);
     }
@@ -170,7 +173,7 @@ export default function ShopScreen() {
     console.log("[Shop] Buy credits pressed, pack:", staticId, "credits:", credits);
     if (!pkg) {
       console.log("[Shop] No RevenueCat package found for credits pack:", staticId);
-      setErrorMessage(isFrench ? "Pack non disponible pour le moment." : "Pack not available at the moment.");
+      setErrorMessage(isFr ? "Pack non disponible pour le moment." : "Pack not available at the moment.");
       return;
     }
     setErrorMessage("");
@@ -180,13 +183,13 @@ export default function ShopScreen() {
       if (success) {
         console.log("[Shop] Credits purchase successful:", staticId, credits, "credits");
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        showToast(isFrench ? `${credits} crédits ajoutés ! 💛` : `${credits} credits added! 💛`);
+        showToast(isFr ? `${credits} crédits ajoutés ! 💛` : `${credits} credits added! 💛`);
       } else {
         console.log("[Shop] Credits purchase cancelled:", staticId);
       }
     } catch (err: any) {
       console.log("[Shop] Credits purchase error:", err?.message);
-      setErrorMessage(isFrench ? "L'achat a échoué. Réessaie." : "Purchase failed. Please try again.");
+      setErrorMessage(isFr ? "L'achat a échoué. Réessaie." : "Purchase failed. Please try again.");
     } finally {
       setPurchasingId(null);
     }
@@ -201,14 +204,14 @@ export default function ShopScreen() {
       if (found) {
         console.log("[Shop] Purchases restored successfully");
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        showToast(isFrench ? "Achats restaurés ! 💛" : "Purchases restored! 💛");
+        showToast(isFr ? "Achats restaurés ! 💛" : "Purchases restored! 💛");
       } else {
         console.log("[Shop] No purchases found to restore");
-        showToast(isFrench ? "Aucun achat trouvé." : "No purchases found.");
+        showToast(isFr ? "Aucun achat trouvé." : "No purchases found.");
       }
     } catch (err: any) {
       console.log("[Shop] Restore error:", err?.message);
-      setErrorMessage(isFrench ? "Erreur lors de la restauration." : "Error restoring purchases.");
+      setErrorMessage(isFr ? "Erreur lors de la restauration." : "Error restoring purchases.");
     } finally {
       setRestoringPurchases(false);
     }
@@ -237,8 +240,17 @@ export default function ShopScreen() {
         >
           <Text style={styles.backIcon}>‹</Text>
         </AnimatedPressable>
-        <Text style={styles.headerTitle}>{t('profile_shop')}</Text>
-        <View style={{ width: 40 }} />
+        <Text style={styles.headerTitle}>{tfl('profile_shop', lang)}</Text>
+        <TouchableOpacity
+          onPress={() => {
+            const next = lang === 'fr' ? 'en' : 'fr';
+            console.log("[Shop] Language toggled to:", next);
+            setLang(next);
+          }}
+          style={styles.langToggle}
+        >
+          <Text style={styles.langToggleText}>{lang === 'fr' ? '🇫🇷' : '🇬🇧'}</Text>
+        </TouchableOpacity>
       </View>
 
       {loading ? (
@@ -251,7 +263,7 @@ export default function ShopScreen() {
           {/* Premium active banner */}
           {isSubscribed && (
             <View style={styles.premiumActiveBanner}>
-              <Text style={styles.premiumActiveBannerText}>{isFrench ? "✓ Premium actif" : "✓ Premium active"}</Text>
+              <Text style={styles.premiumActiveBannerText}>{isFr ? "✓ Premium actif" : "✓ Premium active"}</Text>
             </View>
           )}
 
@@ -275,13 +287,13 @@ export default function ShopScreen() {
                 }}
                 style={styles.manageSubButton}
               >
-                <Text style={styles.manageSubButtonText}>{isFrench ? "Gérer mon abonnement →" : "Manage my subscription →"}</Text>
+                <Text style={styles.manageSubButtonText}>{isFr ? "Gérer mon abonnement →" : "Manage my subscription →"}</Text>
               </AnimatedPressable>
             </View>
           ) : (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Kindly Premium ✨</Text>
-              <Text style={styles.sectionSubtitle}>{isFrench ? "Choisissez votre formule" : "Choose your plan"}</Text>
+              <Text style={styles.sectionSubtitle}>{isFr ? "Choisissez votre formule" : "Choose your plan"}</Text>
 
               {/* Plan cards */}
               <View style={styles.planRow}>
@@ -297,9 +309,9 @@ export default function ShopScreen() {
                     selectedPlan === "monthly" && styles.planCardSelected,
                   ]}
                 >
-                  <Text style={styles.planCardTitle}>{isFrench ? "Mensuel" : "Monthly"}</Text>
+                  <Text style={styles.planCardTitle}>{isFr ? "Mensuel" : "Monthly"}</Text>
                   <Text style={styles.planCardPrice}>{monthlyPrice}</Text>
-                  <Text style={styles.planCardPeriod}>{isFrench ? "par mois" : "per month"}</Text>
+                  <Text style={styles.planCardPeriod}>{isFr ? "par mois" : "per month"}</Text>
                 </AnimatedPressable>
 
                 {/* Annual card */}
@@ -314,19 +326,19 @@ export default function ShopScreen() {
                   ]}
                 >
                   <View style={styles.bestBadge}>
-                    <Text style={styles.bestBadgeText}>{isFrench ? "Meilleure offre" : "Best value"}</Text>
+                    <Text style={styles.bestBadgeText}>{isFr ? "Meilleure offre" : "Best value"}</Text>
                   </View>
-                  <Text style={styles.planCardTitle}>{isFrench ? "Annuel" : "Annual"}</Text>
+                  <Text style={styles.planCardTitle}>{isFr ? "Annuel" : "Annual"}</Text>
                   <Text style={styles.planCardPrice}>{annualPrice}</Text>
-                  <Text style={styles.planCardPeriod}>{isFrench ? "par an" : "per year"}</Text>
+                  <Text style={styles.planCardPeriod}>{isFr ? "par an" : "per year"}</Text>
                 </AnimatedPressable>
               </View>
 
               {/* Benefits */}
               <View style={styles.benefitsList}>
-                <BenefitRow icon="💛" text={isFrench ? "Crédits illimités" : "Unlimited credits"} />
-                <BenefitRow icon="✨" text={isFrench ? "Badge Premium sur ton profil" : "Premium badge on your profile"} />
-                <BenefitRow icon="⚡" text={isFrench ? "Support prioritaire" : "Priority support"} />
+                <BenefitRow icon="💛" text={isFr ? "Crédits illimités" : "Unlimited credits"} />
+                <BenefitRow icon="✨" text={isFr ? "Badge Premium sur ton profil" : "Premium badge on your profile"} />
+                <BenefitRow icon="⚡" text={isFr ? "Support prioritaire" : "Priority support"} />
               </View>
 
               {/* Subscribe CTA */}
@@ -338,7 +350,7 @@ export default function ShopScreen() {
                 {isSubscribingAny ? (
                   <ActivityIndicator color={COLORS.text} size="small" />
                 ) : (
-                  <Text style={styles.subscribeButtonText}>{t('shop_subscribe')}</Text>
+                  <Text style={styles.subscribeButtonText}>{tfl('shop_subscribe', lang)}</Text>
                 )}
               </AnimatedPressable>
             </View>
@@ -346,9 +358,9 @@ export default function ShopScreen() {
 
           {/* ── Section 2: Credit packs ── */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{isFrench ? "Packs de crédits 💛" : "Credit packs 💛"}</Text>
+            <Text style={styles.sectionTitle}>{isFr ? "Packs de crédits 💛" : "Credit packs 💛"}</Text>
             <Text style={styles.sectionSubtitle}>
-              {isFrench ? "Utilise tes crédits pour révéler qui t'a envoyé un compliment" : "Use your credits to reveal who sent you a compliment"}
+              {isFr ? "Utilise tes crédits pour révéler qui t'a envoyé un compliment" : "Use your credits to reveal who sent you a compliment"}
             </Text>
             <View style={styles.packsRow}>
               {staticCreditPacks.map((pack, index) => {
@@ -359,21 +371,22 @@ export default function ShopScreen() {
                   kindly_credits_large: "6,99 €",
                 };
                 const priceStr = rcPkg?.product?.priceString ?? staticPrices[pack.id] ?? "—";
-                const isPopular = pack.label === (isFrench ? "Populaire" : "Popular");
+                const isPopular = pack.label === (isFr ? "Populaire" : "Popular");
                 const isPurchasing = purchasingId === pack.id;
                 const hasBadge = !!pack.label || !!pack.discount;
                 return (
                   <View key={pack.id} style={{ flex: 1 }}>
                     <View style={[styles.packBadgeWrapper, !hasBadge && { height: 0, marginBottom: 0 }]}>
-                      {pack.label ? (
-                        <View style={[styles.packBadge, isPopular && styles.packBadgePopular]}>
-                          <Text style={styles.packBadgeText}>{pack.label}</Text>
+                      {pack.label && (
+                        <View style={styles.packBadgePopular}>
+                          <Text style={styles.packBadgePopularText}>{pack.label}</Text>
                         </View>
-                      ) : pack.discount ? (
-                        <View style={styles.discountBadge}>
-                          <Text style={styles.discountBadgeText}>{pack.discount}</Text>
+                      )}
+                      {pack.discount && (
+                        <View style={styles.packBadgeDiscount}>
+                          <Text style={styles.packBadgeDiscountText}>{pack.discount}</Text>
                         </View>
-                      ) : null}
+                      )}
                     </View>
                     <View style={[styles.packCard, isPopular && styles.packCardPopular]}>
                       <Text style={[styles.packCredits, isPopular && styles.packCreditsPopular]}>
@@ -392,7 +405,7 @@ export default function ShopScreen() {
                           <ActivityIndicator color={isPopular ? COLORS.text : COLORS.primary} size="small" />
                         ) : (
                           <Text style={[styles.packBuyButtonText, isPopular && styles.packBuyButtonTextPopular]}>
-                            {t('shop_buy')}
+                            {tfl('shop_buy', lang)}
                           </Text>
                         )}
                       </AnimatedPressable>
@@ -413,11 +426,11 @@ export default function ShopScreen() {
               {restoringPurchases ? (
                 <ActivityIndicator color={COLORS.textSecondary} size="small" />
               ) : (
-                <Text style={styles.restoreButtonText}>{isFrench ? "Restaurer mes achats" : "Restore my purchases"}</Text>
+                <Text style={styles.restoreButtonText}>{isFr ? "Restaurer mes achats" : "Restore my purchases"}</Text>
               )}
             </TouchableOpacity>
             <Text style={styles.legalText}>
-              {isFrench
+              {isFr
                 ? "Les abonnements se renouvellent automatiquement. Vous pouvez annuler à tout moment depuis les réglages de votre compte App Store. Les achats de crédits sont définitifs et non remboursables."
                 : "Subscriptions renew automatically. You can cancel at any time from your App Store account settings. Credit purchases are final and non-refundable."}
             </Text>
@@ -474,6 +487,17 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 60,
     gap: 28,
+  },
+  langToggle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.surfaceSecondary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  langToggleText: {
+    fontSize: 20,
   },
   // Toast
   toast: {
@@ -700,24 +724,35 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   packBadgeWrapper: {
+    flexDirection: "row",
+    gap: 6,
+    justifyContent: "center",
     alignItems: "center",
     marginBottom: -10,
     zIndex: 10,
-    height: 20,
-  },
-  packBadge: {
-    backgroundColor: COLORS.surfaceSecondary,
-    borderRadius: 6,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    height: 22,
   },
   packBadgePopular: {
     backgroundColor: COLORS.text,
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
   },
-  packBadgeText: {
+  packBadgePopularText: {
     fontSize: 9,
     fontWeight: "700",
-    color: COLORS.text,
+    color: COLORS.primary,
+  },
+  packBadgeDiscount: {
+    backgroundColor: "#D1FAE5",
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  packBadgeDiscountText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#065F46",
   },
   packCredits: {
     fontSize: 28,

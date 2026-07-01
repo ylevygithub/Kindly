@@ -24,7 +24,8 @@ import { useRouter } from "expo-router";
 import { PurchasesPackage } from "react-native-purchases";
 
 import { useSubscription } from "@/contexts/SubscriptionContext";
-import { t } from "@/utils/i18n";
+import { tfl } from "@/utils/i18n";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -61,6 +62,7 @@ const colors = {
 
 export default function PaywallScreen() {
   const router = useRouter();
+  const { lang } = useLanguage();
 
   // Get subscription state and methods from context
   const {
@@ -136,8 +138,8 @@ export default function PaywallScreen() {
   };
 
   const handleClose = () => {
-    console.log("[Paywall] Maybe later / close pressed");
-    router.replace("/(tabs)/(home)");
+    console.log("[Paywall] Maybe later / close pressed — signaling paywallDismissed");
+    router.replace("/(tabs)/(home)?paywallDismissed=1");
   };
 
   // Handle web mock purchase (replicates RevenueCat test store flow for web preview)
@@ -260,7 +262,7 @@ export default function PaywallScreen() {
           <SafeAreaView edges={["top", "bottom"]} style={styles.safeArea}>
             <View style={styles.centeredContainer}>
               <ActivityIndicator size="large" color="#fff" />
-              <Text style={styles.loadingText}>{t('paywall_loading')}</Text>
+              <Text style={styles.loadingText}>{tfl('paywall_loading', lang)}</Text>
             </View>
           </SafeAreaView>
         </LinearGradient>
@@ -298,8 +300,8 @@ export default function PaywallScreen() {
               <View style={styles.premiumBadge}>
                 <Text style={styles.premiumBadgeText}>PREMIUM</Text>
               </View>
-              <Text style={styles.title}>{t('paywall_title')}</Text>
-              <Text style={styles.subtitle}>{t('paywall_subtitle')}</Text>
+              <Text style={styles.title}>{tfl('paywall_title', lang)}</Text>
+              <Text style={styles.subtitle}>{tfl('paywall_subtitle', lang)}</Text>
             </View>
 
             {/* Features List - Glass Card */}
@@ -379,7 +381,7 @@ export default function PaywallScreen() {
                       router.replace("/(tabs)/(home)");
                     }}
                   >
-                    <Text style={styles.devMockButtonText}>{t('paywall_devSimulate')}</Text>
+                    <Text style={styles.devMockButtonText}>{tfl('paywall_devSimulate', lang)}</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -421,7 +423,7 @@ export default function PaywallScreen() {
                     <ActivityIndicator size="small" color="#fff" />
                   ) : (
                     <Text style={styles.secondaryButtonText}>
-                      {t('paywall_restore')}
+                      {tfl('paywall_restore', lang)}
                     </Text>
                   )}
                 </TouchableOpacity>
@@ -429,7 +431,7 @@ export default function PaywallScreen() {
                   Preview mode — purchases available in the mobile app
                 </Text>
                 <TouchableOpacity style={styles.maybeLaterButton} onPress={handleClose}>
-                  <Text style={styles.maybeLaterText}>{t('paywall_skip')}</Text>
+                  <Text style={styles.maybeLaterText}>{tfl('paywall_skip', lang)}</Text>
                 </TouchableOpacity>
               </>
             ) : (
@@ -465,7 +467,7 @@ export default function PaywallScreen() {
                   {restoring ? (
                     <ActivityIndicator size="small" color="#fff" />
                   ) : (
-                    <Text style={styles.secondaryButtonText}>{t('paywall_restore')}</Text>
+                    <Text style={styles.secondaryButtonText}>{tfl('paywall_restore', lang)}</Text>
                   )}
                 </TouchableOpacity>
 
@@ -479,7 +481,7 @@ export default function PaywallScreen() {
 
                 {/* Maybe later — soft dismiss */}
                 <TouchableOpacity style={styles.maybeLaterButton} onPress={handleClose}>
-                  <Text style={styles.maybeLaterText}>{t('paywall_skip')}</Text>
+                  <Text style={styles.maybeLaterText}>{tfl('paywall_skip', lang)}</Text>
                 </TouchableOpacity>
               </>
             )}

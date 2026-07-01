@@ -15,7 +15,8 @@ import Svg, { Path } from "react-native-svg";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiGet } from "@/utils/api";
 import { COLORS } from "@/constants/Colors";
-import { t } from "@/utils/i18n";
+import { tfl } from "@/utils/i18n";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 function AppleLogo({ size = 20, color = "#FFFFFF" }: { size?: number; color?: string }) {
   return (
@@ -38,6 +39,7 @@ function GoogleLogo({ size = 20 }: { size?: number }) {
 
 export default function AuthScreen() {
   const { user, signInWithApple, signInWithGoogle } = useAuth();
+  const { lang } = useLanguage();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [loadingApple, setLoadingApple] = useState(false);
@@ -74,7 +76,7 @@ export default function AuthScreen() {
     } catch (err: any) {
       console.log("[Auth] Apple sign-in error:", err?.message);
       if (!String(err?.message).includes("cancel")) {
-        Alert.alert(t('error_generic'), "La connexion avec Apple a échoué. Réessaie.");
+        Alert.alert(tfl('error_generic', lang), "La connexion avec Apple a échoué. Réessaie.");
       }
     } finally {
       setLoadingApple(false);
@@ -88,7 +90,7 @@ export default function AuthScreen() {
       await signInWithGoogle();
     } catch (err: any) {
       console.log("[Auth] Google sign-in error:", err?.message);
-      Alert.alert(t('error_generic'), "La connexion avec Google a échoué. Réessaie.");
+      Alert.alert(tfl('error_generic', lang), "La connexion avec Google a échoué. Réessaie.");
     } finally {
       setLoadingGoogle(false);
     }
@@ -111,7 +113,7 @@ export default function AuthScreen() {
             <Text style={styles.logoEmoji}>💛</Text>
           </View>
           <Text style={styles.appName}>Kindly</Text>
-          <Text style={styles.tagline}>{t('auth_subtitle')}</Text>
+          <Text style={styles.tagline}>{tfl('auth_subtitle', lang)}</Text>
         </View>
 
         {/* Decorative cards */}
@@ -139,7 +141,7 @@ export default function AuthScreen() {
             ) : (
               <>
                 <AppleLogo size={20} color="#FFFFFF" />
-                <Text style={styles.appleButtonText}>{t('auth_continueApple')}</Text>
+                <Text style={styles.appleButtonText}>{tfl('auth_continueApple', lang)}</Text>
               </>
             )}
           </TouchableOpacity>
@@ -155,7 +157,7 @@ export default function AuthScreen() {
             ) : (
               <>
                 <GoogleLogo size={20} />
-                <Text style={styles.googleButtonText}>{t('auth_continueGoogle')}</Text>
+                <Text style={styles.googleButtonText}>{tfl('auth_continueGoogle', lang)}</Text>
               </>
             )}
           </TouchableOpacity>
@@ -163,13 +165,13 @@ export default function AuthScreen() {
 
         {/* Legal */}
         <Text style={styles.legalText}>
-          {t('auth_terms')}
+          {tfl('auth_terms', lang)}
           {' '}
-          {t('auth_termsLink')}
+          {tfl('auth_termsLink', lang)}
           {' '}
-          {t('auth_and')}
+          {tfl('auth_and', lang)}
           {' '}
-          {t('auth_privacyLink')}
+          {tfl('auth_privacyLink', lang)}
         </Text>
       </ScrollView>
     </View>

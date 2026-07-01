@@ -18,7 +18,8 @@ import { COLORS } from "@/constants/Colors";
 import { apiPost } from "@/utils/api";
 import { setOnboardingComplete } from "@/utils/onboardingStorage";
 import { AnimatedPressable } from "@/components/AnimatedPressable";
-import { t, isFrench } from "@/utils/i18n";
+import { t, tfl } from "@/utils/i18n";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const AVATAR_EMOJIS = [
   "😊", "🌟", "🦋", "🌸", "✨", "🎉", "🌈", "💫", "🦄", "🍀",
@@ -30,6 +31,8 @@ const USERNAME_REGEX = /^[a-zA-Z0-9_]{3,20}$/;
 export default function OnboardingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { lang } = useLanguage();
+  const isFrench = lang === 'fr';
   const [username, setUsername] = useState("");
   const [selectedAvatar, setSelectedAvatar] = useState(AVATAR_EMOJIS[0]);
   const [accepted, setAccepted] = useState(false);

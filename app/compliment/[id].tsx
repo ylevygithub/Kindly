@@ -17,6 +17,7 @@ import { COLORS } from "@/constants/Colors";
 import { authenticatedGet, authenticatedPost } from "@/utils/api";
 import { useSubscription } from "@/contexts/SubscriptionContext";
 import { AnimatedPressable } from "@/components/AnimatedPressable";
+import { useLanguage } from "@/contexts/LanguageContext";
 import ConfettiAnimation, { ConfettiRef } from "@/components/ConfettiAnimation";
 
 interface ComplimentDetail {
@@ -65,6 +66,7 @@ export default function ComplimentDetailScreen() {
   const insets = useSafeAreaInsets();
   const confettiRef = useRef<ConfettiRef>(null);
   const { isSubscribed } = useSubscription();
+  const { lang } = useLanguage();
 
   const [compliment, setCompliment] = useState<ComplimentDetail | null>(null);
   const [loading, setLoading] = useState(true);

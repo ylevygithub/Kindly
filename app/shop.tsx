@@ -361,9 +361,10 @@ export default function ShopScreen() {
                 const priceStr = rcPkg?.product?.priceString ?? staticPrices[pack.id] ?? "—";
                 const isPopular = pack.label === (isFrench ? "Populaire" : "Popular");
                 const isPurchasing = purchasingId === pack.id;
+                const hasBadge = !!pack.label || !!pack.discount;
                 return (
                   <View key={pack.id} style={{ flex: 1 }}>
-                    <View style={styles.packBadgeWrapper}>
+                    <View style={[styles.packBadgeWrapper, !hasBadge && { height: 0, marginBottom: 0 }]}>
                       {pack.label ? (
                         <View style={[styles.packBadge, isPopular && styles.packBadgePopular]}>
                           <Text style={styles.packBadgeText}>{pack.label}</Text>

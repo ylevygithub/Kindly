@@ -23,7 +23,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { AnimatedPressable } from "@/components/AnimatedPressable";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { useSubscription } from "@/contexts/SubscriptionContext";
-import { t, tf, isFrench } from "@/utils/i18n";
+import { t, tf, isFrench, locale, tForLang } from "@/utils/i18n";
 
 interface Profile {
   username: string;
@@ -111,6 +111,9 @@ export default function ProfileScreen() {
 
   const [plantModalVisible, setPlantModalVisible] = useState(false);
 
+  const [lang, setLang] = useState<'fr' | 'en'>(locale);
+  const tl = (key: Parameters<typeof tForLang>[0]) => tForLang(key, lang);
+
   // Support modal state
   const [supportModalVisible, setSupportModalVisible] = useState(false);
   const [supportSubject, setSupportSubject] = useState("");
@@ -179,7 +182,7 @@ export default function ProfileScreen() {
 
   const handleSendSupport = async () => {
     if (!supportSubject.trim() || !supportMessage.trim()) {
-      setSupportError(isFrench ? "Merci de remplir tous les champs." : "Please fill in all fields.");
+      setSupportError(lang === 'fr' ? "Merci de remplir tous les champs." : "Please fill in all fields.");
       return;
     }
     console.log("[Profile] Sending support message, subject:", supportSubject);
@@ -198,7 +201,7 @@ export default function ProfileScreen() {
       }, 2500);
     } catch (err) {
       console.log("[Profile] Support send error:", err);
-      setSupportError(isFrench ? "Erreur lors de l'envoi, réessaie." : "Error sending message, please try again.");
+      setSupportError(lang === 'fr' ? "Erreur lors de l'envoi, réessaie." : "Error sending message, please try again.");
     } finally {
       setSupportSending(false);
     }
@@ -309,8 +312,18 @@ export default function ProfileScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>{t('profile_title')} 👤</Text>
+      <View style={[styles.header, styles.headerRow]}>
+        <Text style={styles.headerTitle}>{tl('profile_title')} 👤</Text>
+        <TouchableOpacity
+          onPress={() => {
+            const next = lang === 'fr' ? 'en' : 'fr';
+            console.log("[Profile] Language toggled to:", next);
+            setLang(next);
+          }}
+          style={styles.langToggle}
+        >
+          <Text style={styles.langToggleText}>{lang === 'fr' ? '🇫🇷' : '🇬🇧'}</Text>
+        </TouchableOpacity>
       </View>
 
       {loading ? (
@@ -330,7 +343,7 @@ export default function ProfileScreen() {
                 <Text style={styles.username}>{profile?.username || user?.name || "Utilisateur"}</Text>
                 {isPremium && (
                   <View style={styles.premiumBadge}>
-                    <Text style={styles.premiumBadgeText}>{t('profile_premium')}</Text>
+                    <Text style={styles.premiumBadgeText}>{tl('profile_premium')}</Text>
                   </View>
                 )}
               </View>
@@ -338,7 +351,7 @@ export default function ProfileScreen() {
               {/* Credits & streak pills */}
               <View style={styles.pillRow}>
                 <View style={styles.pill}>
-                  <Text style={styles.pillText}>💛 {credits} {t('profile_credits')}</Text>
+                  <Text style={styles.pillText}>💛 {credits} {tl('profile_credits')}</Text>
                 </View>
                 <View style={styles.pill}>
                   <Text style={styles.pillText}>
@@ -354,14 +367,14 @@ export default function ProfileScreen() {
             onPress={handleShareProfile}
             style={styles.shareButton}
           >
-            <Text style={styles.shareButtonText}>{isFrench ? "Partager mon profil 🔗" : "Share my profile 🔗"}</Text>
+            <Text style={styles.shareButtonText}>{lang === 'fr' ? "Partager mon profil 🔗" : "Share my profile 🔗"}</Text>
           </AnimatedPressable>
 
           {/* Stats row */}
           <View style={styles.statsRow}>
             <View style={styles.statCard}>
               <Text style={styles.statValue}>{totalReceived}</Text>
-              <Text style={styles.statLabel}>{isFrench ? "Reçus" : "Received"}</Text>
+              <Text style={styles.statLabel}>{lang === 'fr' ? "Reçus" : "Received"}</Text>
             </View>
             <View style={[styles.statCard, styles.statCardMiddle]}>
               <View style={styles.streakRow}>
@@ -372,7 +385,7 @@ export default function ProfileScreen() {
             </View>
             <View style={styles.statCard}>
               <Text style={styles.statValue}>{credits}</Text>
-              <Text style={styles.statLabel}>{isFrench ? "Crédits 💛" : "Credits 💛"}</Text>
+              <Text style={styles.statLabel}>{lang === 'fr' ? "Crédits 💛" : "Credits 💛"}</Text>
             </View>
           </View>
 
@@ -380,7 +393,7 @@ export default function ProfileScreen() {
           {(() => {
             const stage = getStreakStage(streak);
             const label = t(stage.labelKey);
-            const startText = isFrench ? "Commence aujourd'hui !" : 'Start today!';
+            const startText = lang === 'fr' ? "Commence aujourd'hui !" : 'Start today!';
             const subtextValue = streak > 0 ? tf('streak_plant_days', streak) : startText;
             return (
               <AnimatedPressable
@@ -415,10 +428,10 @@ export default function ProfileScreen() {
                 <View style={styles.plusCardContent}>
                   <Text style={styles.plusCardTitle}>✨ Kindly Plus</Text>
                   <Text style={styles.plusCardSubtitle}>
-                    {isFrench ? "Envois illimités, reveals gratuits et plus encore" : "Unlimited sends, free reveals and more"}
+                    {lang === 'fr' ? "Envois illimités, reveals gratuits et plus encore" : "Unlimited sends, free reveals and more"}
                   </Text>
                   <View style={styles.plusCardButton}>
-                    <Text style={styles.plusCardButtonText}>{isFrench ? "Essayer Kindly Plus →" : "Try Kindly Plus →"}</Text>
+                    <Text style={styles.plusCardButtonText}>{lang === 'fr' ? "Essayer Kindly Plus →" : "Try Kindly Plus →"}</Text>
                   </View>
                 </View>
               </View>
@@ -427,11 +440,11 @@ export default function ProfileScreen() {
 
           {/* Credits section */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{isFrench ? "Crédits 💛" : "Credits 💛"}</Text>
+            <Text style={styles.sectionTitle}>{lang === 'fr' ? "Crédits 💛" : "Credits 💛"}</Text>
             <View style={styles.creditsCard}>
               <View style={styles.creditsInfo}>
-                <Text style={styles.creditsValue}>{credits} {t('profile_credits')}</Text>
-                <Text style={styles.creditsSubtext}>{isFrench ? "Utilisés pour révéler l'expéditeur" : "Used to reveal the sender"}</Text>
+                <Text style={styles.creditsValue}>{credits} {tl('profile_credits')}</Text>
+                <Text style={styles.creditsSubtext}>{lang === 'fr' ? "Utilisés pour révéler l'expéditeur" : "Used to reveal the sender"}</Text>
               </View>
               <AnimatedPressable
                 onPress={() => {
@@ -440,14 +453,14 @@ export default function ProfileScreen() {
                 }}
                 style={styles.buyCreditsButton}
               >
-                <Text style={styles.buyCreditsText}>{t('shop_buy')}</Text>
+                <Text style={styles.buyCreditsText}>{tl('shop_buy')}</Text>
               </AnimatedPressable>
             </View>
           </View>
 
           {/* Settings section */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{isFrench ? "Réglages" : "Settings"}</Text>
+            <Text style={styles.sectionTitle}>{lang === 'fr' ? "Réglages" : "Settings"}</Text>
             <View style={styles.settingsCard}>
               <AnimatedPressable
                 onPress={() => {
@@ -457,7 +470,7 @@ export default function ProfileScreen() {
                 style={styles.settingsItem}
               >
                 <Text style={styles.settingsItemIcon}>💛</Text>
-                <Text style={styles.settingsItemText}>{isFrench ? "Boutique" : "Shop"}</Text>
+                <Text style={styles.settingsItemText}>{lang === 'fr' ? "Boutique" : "Shop"}</Text>
                 <Text style={styles.settingsItemChevron}>›</Text>
               </AnimatedPressable>
 
@@ -471,7 +484,7 @@ export default function ProfileScreen() {
                 style={styles.settingsItem}
               >
                 <Text style={styles.settingsItemIcon}>{hasPermission ? "🔔" : "🔕"}</Text>
-                <Text style={styles.settingsItemText}>{t('profile_notifications')}</Text>
+                <Text style={styles.settingsItemText}>{tl('profile_notifications')}</Text>
                 <Text style={styles.settingsItemChevron}>›</Text>
               </AnimatedPressable>
 
@@ -486,7 +499,7 @@ export default function ProfileScreen() {
                 style={styles.settingsItem}
               >
                 <Text style={styles.settingsItemIcon}>🚫</Text>
-                <Text style={styles.settingsItemText}>{isFrench ? "Bloquer un utilisateur" : "Block a user"}</Text>
+                <Text style={styles.settingsItemText}>{lang === 'fr' ? "Bloquer un utilisateur" : "Block a user"}</Text>
                 <Text style={styles.settingsItemChevron}>›</Text>
               </AnimatedPressable>
 
@@ -500,7 +513,7 @@ export default function ProfileScreen() {
                 style={styles.settingsItem}
               >
                 <Text style={styles.settingsItemIcon}>📄</Text>
-                <Text style={styles.settingsItemText}>{isFrench ? "CGU et confidentialité" : "Terms & Privacy"}</Text>
+                <Text style={styles.settingsItemText}>{lang === 'fr' ? "CGU et confidentialité" : "Terms & Privacy"}</Text>
                 <Text style={styles.settingsItemChevron}>›</Text>
               </AnimatedPressable>
             </View>
@@ -511,7 +524,7 @@ export default function ProfileScreen() {
             onPress={handleOpenSupportModal}
             style={styles.supportButton}
           >
-            <Text style={styles.supportButtonText}>{isFrench ? "Signaler un problème ✉️" : "Report an issue ✉️"}</Text>
+            <Text style={styles.supportButtonText}>{lang === 'fr' ? "Signaler un problème ✉️" : "Report an issue ✉️"}</Text>
           </AnimatedPressable>
 
           {/* Sign out */}
@@ -523,7 +536,7 @@ export default function ProfileScreen() {
             {signingOut ? (
               <ActivityIndicator color={COLORS.danger} size="small" />
             ) : (
-              <Text style={styles.signOutText}>{t('profile_logout')}</Text>
+              <Text style={styles.signOutText}>{tl('profile_logout')}</Text>
             )}
           </AnimatedPressable>
 
@@ -536,7 +549,7 @@ export default function ProfileScreen() {
             {deletingAccount ? (
               <ActivityIndicator color={COLORS.danger} size="small" />
             ) : (
-              <Text style={styles.deleteAccountText}>{isFrench ? "Supprimer mon compte" : "Delete my account"}</Text>
+              <Text style={styles.deleteAccountText}>{lang === 'fr' ? "Supprimer mon compte" : "Delete my account"}</Text>
             )}
           </AnimatedPressable>
         </ScrollView>
@@ -685,8 +698,8 @@ export default function ProfileScreen() {
           <View style={styles.modalContent}>
             {(() => {
               const stage = getStreakStage(streak);
-              const label = t(stage.labelKey);
-              const stages: { threshold: number; labelKey: Parameters<typeof t>[0]; emoji: string }[] = [
+              const label = tl(stage.labelKey);
+              const stages: { threshold: number; labelKey: Parameters<typeof tl>[0]; emoji: string }[] = [
                 { threshold: 1,   labelKey: 'streak_stage_1',   emoji: '🌱' },
                 { threshold: 7,   labelKey: 'streak_stage_7',   emoji: '🌱' },
                 { threshold: 30,  labelKey: 'streak_stage_30',  emoji: '🪴' },
@@ -694,15 +707,15 @@ export default function ProfileScreen() {
                 { threshold: 180, labelKey: 'streak_stage_180', emoji: '🌲' },
                 { threshold: 365, labelKey: 'streak_stage_365', emoji: '🌳' },
               ];
-              const day0Text = isFrench ? 'Jour 0' : 'Day 0';
+              const day0Text = lang === 'fr' ? 'Jour 0' : 'Day 0';
               const heroDaysText = streak > 0 ? tf('streak_plant_days', streak) : day0Text;
               const nextText = stage.nextThreshold !== null
                 ? tf('streak_plant_next_in', stage.nextThreshold - streak)
-                : t('streak_plant_max');
+                : tl('streak_plant_max');
               return (
                 <>
                   <View style={styles.modalHeader}>
-                    <Text style={styles.modalTitle}>{t('streak_plant_title')}</Text>
+                    <Text style={styles.modalTitle}>{tl('streak_plant_title')}</Text>
                     <TouchableOpacity onPress={() => {
                       console.log("[Profile] Plant modal close button pressed");
                       setPlantModalVisible(false);
@@ -719,17 +732,17 @@ export default function ProfileScreen() {
                   </View>
 
                   {/* Subtitle */}
-                  <Text style={styles.plantModalSubtitle}>{t('streak_plant_subtitle')}</Text>
+                  <Text style={styles.plantModalSubtitle}>{tl('streak_plant_subtitle')}</Text>
 
                   {/* All stages list */}
                   <View style={styles.plantStagesList}>
                     {stages.map((s) => {
                       const isReached = streak >= s.threshold;
                       const isCurrent = stage.labelKey === s.labelKey;
-                      const stageLabel = t(s.labelKey);
+                      const stageLabel = tl(s.labelKey);
                       const thresholdText = s.threshold === 1
-                        ? (isFrench ? 'Jour 1' : 'Day 1')
-                        : (isFrench ? `${s.threshold} jours` : `${s.threshold} days`);
+                        ? (lang === 'fr' ? 'Jour 1' : 'Day 1')
+                        : (lang === 'fr' ? `${s.threshold} jours` : `${s.threshold} days`);
                       return (
                         <View key={s.threshold} style={[styles.plantStageRow, isCurrent && styles.plantStageRowCurrent]}>
                           <Text style={[styles.plantStageEmoji, !isReached && styles.plantStageDimmed]}>{s.emoji}</Text>
@@ -747,7 +760,7 @@ export default function ProfileScreen() {
                   <Text style={styles.plantNextText}>{nextText}</Text>
 
                   {/* Warning */}
-                  <Text style={styles.plantMissText}>{t('streak_plant_miss')}</Text>
+                  <Text style={styles.plantMissText}>{tl('streak_plant_miss')}</Text>
 
                   {/* Close button */}
                   <AnimatedPressable
@@ -757,7 +770,7 @@ export default function ProfileScreen() {
                     }}
                     style={styles.plantCloseButton}
                   >
-                    <Text style={styles.plantCloseButtonText}>{t('streak_plant_close')}</Text>
+                    <Text style={styles.plantCloseButtonText}>{tl('streak_plant_close')}</Text>
                   </AnimatedPressable>
                 </>
               );
@@ -780,11 +793,24 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
   },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   headerTitle: {
     fontSize: 26,
     fontWeight: "800",
     color: COLORS.text,
     letterSpacing: -0.5,
+  },
+  langToggle: {
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: COLORS.surfaceSecondary,
+  },
+  langToggleText: {
+    fontSize: 20,
   },
   scrollContent: {
     paddingHorizontal: 16,

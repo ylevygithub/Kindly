@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { COLORS } from "@/constants/Colors";
@@ -172,12 +173,19 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { lang, setLang } = useLanguage();
   const tl = (key: Parameters<typeof tfl>[0]) => tfl(key, lang);
+  const [renderKey, setRenderKey] = useState(0);
   const [compliments, setCompliments] = useState<Compliment[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const confettiRef = useRef<ConfettiRef>(null);
   const prevCountRef = useRef(0);
   const paywallDismissedRef = useRef(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      setRenderKey(k => k + 1);
+    }, [])
+  );
 
   // When returning from paywall with dismissed flag, mark it
   useEffect(() => {
@@ -239,7 +247,7 @@ export default function HomeScreen() {
   const langToggleFlag = lang === 'fr' ? '🇫🇷' : '🇬🇧';
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View key={renderKey} style={[styles.container, { paddingTop: insets.top }]}>
       <ConfettiAnimation ref={confettiRef} />
 
       {/* Header */}

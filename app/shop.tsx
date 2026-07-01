@@ -214,8 +214,8 @@ export default function ShopScreen() {
     }
   };
 
-  const monthlyPrice = monthlyPkg?.product?.priceString ?? "";
-  const annualPrice = annualPkg?.product?.priceString ?? "";
+  const monthlyPrice = monthlyPkg?.product?.priceString ?? "4,99 €";
+  const annualPrice = annualPkg?.product?.priceString ?? "39,99 €";
 
   const isSubscribingMonthly = purchasingId === "monthly";
   const isSubscribingAnnual = purchasingId === "annual";
@@ -298,7 +298,7 @@ export default function ShopScreen() {
                   ]}
                 >
                   <Text style={styles.planCardTitle}>{isFrench ? "Mensuel" : "Monthly"}</Text>
-                  {monthlyPrice ? <Text style={styles.planCardPrice}>{monthlyPrice}</Text> : <ActivityIndicator size="small" color={COLORS.textSecondary} />}
+                  <Text style={styles.planCardPrice}>{monthlyPrice}</Text>
                   <Text style={styles.planCardPeriod}>{isFrench ? "par mois" : "per month"}</Text>
                 </AnimatedPressable>
 
@@ -317,7 +317,7 @@ export default function ShopScreen() {
                     <Text style={styles.bestBadgeText}>{isFrench ? "Meilleure offre" : "Best value"}</Text>
                   </View>
                   <Text style={styles.planCardTitle}>{isFrench ? "Annuel" : "Annual"}</Text>
-                  {annualPrice ? <Text style={styles.planCardPrice}>{annualPrice}</Text> : <ActivityIndicator size="small" color={COLORS.textSecondary} />}
+                  <Text style={styles.planCardPrice}>{annualPrice}</Text>
                   <Text style={styles.planCardPeriod}>{isFrench ? "par an" : "per year"}</Text>
                 </AnimatedPressable>
               </View>
@@ -353,45 +353,50 @@ export default function ShopScreen() {
             <View style={styles.packsRow}>
               {staticCreditPacks.map((pack, index) => {
                 const rcPkg = creditsPacks[index] ?? null;
-                const priceStr = rcPkg?.product?.priceString ?? null;
+                const staticPrices: Record<string, string> = {
+                  kindly_credits_small: "0,99 €",
+                  kindly_credits_medium: "3,99 €",
+                  kindly_credits_large: "6,99 €",
+                };
+                const priceStr = rcPkg?.product?.priceString ?? staticPrices[pack.id] ?? "—";
                 const isPopular = pack.label === (isFrench ? "Populaire" : "Popular");
                 const isPurchasing = purchasingId === pack.id;
                 return (
-                  <View key={pack.id} style={[styles.packCard, isPopular && styles.packCardPopular]}>
-                    {pack.discount && !pack.label && (
-                      <View style={styles.discountBadge}>
-                        <Text style={styles.discountBadgeText}>{pack.discount}</Text>
+                  <View key={pack.id} style={{ flex: 1 }}>
+                    {pack.label ? (
+                      <View style={styles.packBadgeWrapper}>
+                        <View style={[styles.packBadge, isPopular && styles.packBadgePopular]}>
+                          <Text style={styles.packBadgeText}>{pack.label}</Text>
+                        </View>
                       </View>
-                    )}
-                    {pack.label && (
-                      <View style={[styles.packBadge, isPopular && styles.packBadgePopular]}>
-                        <Text style={styles.packBadgeText}>{pack.label}</Text>
-                      </View>
-                    )}
-                    <Text style={[styles.packCredits, isPopular && styles.packCreditsPopular]}>
-                      {pack.credits}
-                    </Text>
-                    <Text style={styles.packCreditsEmoji}>💛</Text>
-                    {priceStr ? (
+                    ) : null}
+                    <View style={[styles.packCard, isPopular && styles.packCardPopular]}>
+                      {pack.discount && !pack.label && (
+                        <View style={styles.discountBadge}>
+                          <Text style={styles.discountBadgeText}>{pack.discount}</Text>
+                        </View>
+                      )}
+                      <Text style={[styles.packCredits, isPopular && styles.packCreditsPopular]}>
+                        {pack.credits}
+                      </Text>
+                      <Text style={styles.packCreditsEmoji}>💛</Text>
                       <Text style={[styles.packPrice, isPopular && styles.packPricePopular]}>
                         {priceStr}
                       </Text>
-                    ) : (
-                      <Text style={[styles.packPrice, isPopular && styles.packPricePopular]}>—</Text>
-                    )}
-                    <AnimatedPressable
-                      onPress={() => handleBuyCredits(rcPkg, pack.id, pack.credits)}
-                      disabled={!!purchasingId}
-                      style={[styles.packBuyButton, isPopular && styles.packBuyButtonPopular]}
-                    >
-                      {isPurchasing ? (
-                        <ActivityIndicator color={isPopular ? COLORS.text : COLORS.primary} size="small" />
-                      ) : (
-                        <Text style={[styles.packBuyButtonText, isPopular && styles.packBuyButtonTextPopular]}>
-                          {t('shop_buy')}
-                        </Text>
-                      )}
-                    </AnimatedPressable>
+                      <AnimatedPressable
+                        onPress={() => handleBuyCredits(rcPkg, pack.id, pack.credits)}
+                        disabled={!!purchasingId}
+                        style={[styles.packBuyButton, isPopular && styles.packBuyButtonPopular]}
+                      >
+                        {isPurchasing ? (
+                          <ActivityIndicator color={isPopular ? COLORS.text : COLORS.primary} size="small" />
+                        ) : (
+                          <Text style={[styles.packBuyButtonText, isPopular && styles.packBuyButtonTextPopular]}>
+                            {t('shop_buy')}
+                          </Text>
+                        )}
+                      </AnimatedPressable>
+                    </View>
                   </View>
                 );
               })}
@@ -667,7 +672,7 @@ const styles = StyleSheet.create({
   packsRow: {
     flexDirection: "row",
     gap: 10,
-    paddingTop: 14,
+    paddingTop: 16,
   },
   packCard: {
     flex: 1,
@@ -694,9 +699,12 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 4,
   },
+  packBadgeWrapper: {
+    alignItems: "center",
+    marginBottom: -10,
+    zIndex: 10,
+  },
   packBadge: {
-    position: "absolute",
-    top: -10,
     backgroundColor: COLORS.surfaceSecondary,
     borderRadius: 6,
     paddingHorizontal: 6,

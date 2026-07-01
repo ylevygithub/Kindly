@@ -214,8 +214,8 @@ export default function ShopScreen() {
     }
   };
 
-  const monthlyPrice = monthlyPkg?.product?.priceString ?? "—";
-  const annualPrice = annualPkg?.product?.priceString ?? "—";
+  const monthlyPrice = monthlyPkg?.product?.priceString ?? "";
+  const annualPrice = annualPkg?.product?.priceString ?? "";
 
   const isSubscribingMonthly = purchasingId === "monthly";
   const isSubscribingAnnual = purchasingId === "annual";
@@ -298,7 +298,7 @@ export default function ShopScreen() {
                   ]}
                 >
                   <Text style={styles.planCardTitle}>{isFrench ? "Mensuel" : "Monthly"}</Text>
-                  <Text style={styles.planCardPrice}>{monthlyPrice}</Text>
+                  {monthlyPrice ? <Text style={styles.planCardPrice}>{monthlyPrice}</Text> : <ActivityIndicator size="small" color={COLORS.textSecondary} />}
                   <Text style={styles.planCardPeriod}>{isFrench ? "par mois" : "per month"}</Text>
                 </AnimatedPressable>
 
@@ -317,7 +317,7 @@ export default function ShopScreen() {
                     <Text style={styles.bestBadgeText}>{isFrench ? "Meilleure offre" : "Best value"}</Text>
                   </View>
                   <Text style={styles.planCardTitle}>{isFrench ? "Annuel" : "Annual"}</Text>
-                  <Text style={styles.planCardPrice}>{annualPrice}</Text>
+                  {annualPrice ? <Text style={styles.planCardPrice}>{annualPrice}</Text> : <ActivityIndicator size="small" color={COLORS.textSecondary} />}
                   <Text style={styles.planCardPeriod}>{isFrench ? "par an" : "per year"}</Text>
                 </AnimatedPressable>
               </View>
@@ -358,7 +358,7 @@ export default function ShopScreen() {
                 const isPurchasing = purchasingId === pack.id;
                 return (
                   <View key={pack.id} style={[styles.packCard, isPopular && styles.packCardPopular]}>
-                    {pack.discount && (
+                    {pack.discount && !pack.label && (
                       <View style={styles.discountBadge}>
                         <Text style={styles.discountBadgeText}>{pack.discount}</Text>
                       </View>
@@ -549,7 +549,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     padding: 16,
     alignItems: "center",
-    gap: 4,
+    gap: 6,
     borderWidth: 2,
     borderColor: COLORS.border,
     minHeight: 140,
@@ -582,6 +582,7 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: COLORS.text,
     marginTop: 4,
+    minHeight: 28,
   },
   planCardPeriod: {
     fontSize: 12,
@@ -666,6 +667,7 @@ const styles = StyleSheet.create({
   packsRow: {
     flexDirection: "row",
     gap: 10,
+    paddingTop: 14,
   },
   packCard: {
     flex: 1,
@@ -677,6 +679,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: COLORS.border,
     position: "relative",
+    overflow: "visible",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
@@ -755,12 +758,13 @@ const styles = StyleSheet.create({
   // Discount badge
   discountBadge: {
     position: "absolute",
-    top: -10,
+    top: -12,
     right: 8,
     backgroundColor: "#D1FAE5",
     borderRadius: 6,
     paddingHorizontal: 6,
     paddingVertical: 2,
+    zIndex: 10,
   },
   discountBadgeText: {
     fontSize: 10,

@@ -788,9 +788,6 @@ export function register(app: App, fastify: FastifyInstance) {
           type: 'object',
           properties: {
             id: { type: 'string' },
-            text: { type: 'string' },
-            category: { type: 'string' },
-            created_at: { type: 'string', format: 'date-time' },
             is_revealed: { type: 'boolean' },
             sender: {
               type: 'object',
@@ -800,9 +797,10 @@ export function register(app: App, fastify: FastifyInstance) {
                 avatar_emoji: { type: 'string' },
               },
             },
+            credits_remaining: { type: 'number' },
           },
         },
-        402: { type: 'object', properties: { error: { type: 'string' }, credits_needed: { type: 'number' }, credits_available: { type: 'number' } } },
+        402: { type: 'object', properties: { error: { type: 'string' } } },
         404: { type: 'object', properties: { error: { type: 'string' } } },
         401: { type: 'object', properties: { error: { type: 'string' } } },
       },
@@ -821,63 +819,75 @@ export function register(app: App, fastify: FastifyInstance) {
       return reply.status(404).send({ error: 'Compliment not found' });
     }
 
+    // If already revealed, return immediately (idempotent)
     if (compliment.is_revealed) {
       const sender = await app.db.query.profiles.findFirst({
         where: eq(schema.profiles.id, compliment.sender_id),
         columns: { id: true, username: true, avatar_emoji: true },
       });
+      const recipient = await app.db.query.profiles.findFirst({
+        where: eq(schema.profiles.id, session.user.id),
+        columns: { credits: true },
+      });
       app.logger.info({ userId: session.user.id, complimentId: compliment.id }, 'Compliment already revealed');
-      return {
+      return reply.status(200).send({
         id: compliment.id,
-        text: compliment.text,
-        category: compliment.category,
-        created_at: compliment.created_at,
-        is_revealed: compliment.is_revealed,
+        is_revealed: true,
         sender,
-      };
+        credits_remaining: recipient?.credits || 0,
+      });
     }
 
+    // Load recipient profile to check credits and premium status
     const profile = await app.db.query.profiles.findFirst({
       where: eq(schema.profiles.id, session.user.id),
     });
 
-    if (!profile || profile.credits < 5) {
+    // Check if premium or has sufficient credits
+    if (!profile?.is_premium && profile && profile.credits < 5) {
       return reply.status(402).send({
-        error: 'Crédits insuffisants pour révéler l\'expéditeur.',
-        credits_needed: 5,
-        credits_available: profile?.credits || 0,
+        error: 'insufficient_credits',
       });
     }
 
-    await app.db.update(schema.profiles)
-      .set({ credits: profile.credits - 5 })
-      .where(eq(schema.profiles.id, session.user.id));
+    // Deduct credits if not premium
+    if (!profile?.is_premium) {
+      await app.db.update(schema.profiles)
+        .set({ credits: profile.credits - 5 })
+        .where(eq(schema.profiles.id, session.user.id));
 
-    await app.db.insert(schema.credit_transactions).values({
-      user_id: session.user.id,
-      amount: -5,
-      reason: 'reveal_purchase',
-      reference_id: compliment.id,
-    });
+      await app.db.insert(schema.credit_transactions).values({
+        user_id: session.user.id,
+        amount: -5,
+        reason: 'reveal_purchase',
+        reference_id: compliment.id,
+      });
+    }
 
+    // Mark as revealed
     await app.db.update(schema.compliments)
       .set({ is_revealed: true })
       .where(eq(schema.compliments.id, compliment.id));
 
+    // Load sender profile
     const sender = await app.db.query.profiles.findFirst({
       where: eq(schema.profiles.id, compliment.sender_id),
       columns: { id: true, username: true, avatar_emoji: true },
     });
 
+    // Load updated recipient credits
+    const updatedRecipient = await app.db.query.profiles.findFirst({
+      where: eq(schema.profiles.id, session.user.id),
+      columns: { credits: true },
+    });
+
     app.logger.info({ userId: session.user.id, complimentId: compliment.id }, 'Compliment revealed');
-    return {
+    return reply.status(200).send({
       id: compliment.id,
-      text: compliment.text,
-      category: compliment.category,
-      created_at: compliment.created_at,
       is_revealed: true,
       sender,
-    };
+      credits_remaining: updatedRecipient?.credits || 0,
+    });
   });
 
   // POST /api/compliments/:id/guess - Guess compliment sender

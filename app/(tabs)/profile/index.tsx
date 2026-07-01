@@ -614,7 +614,7 @@ export default function ProfileScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Bloquer un utilisateur</Text>
+              <Text style={styles.modalTitle}>{lang === 'fr' ? "Bloquer un utilisateur" : "Block a user"}</Text>
               <TouchableOpacity
                 onPress={() => {
                   console.log("[Profile] Block modal closed");
@@ -625,7 +625,7 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             </View>
             {recentUsers.length === 0 ? (
-              <Text style={styles.modalEmpty}>Aucun utilisateur récent</Text>
+              <Text style={styles.modalEmpty}>{lang === 'fr' ? "Aucun utilisateur récent" : "No recent users"}</Text>
             ) : (
               recentUsers.map((u) => (
                 <AnimatedPressable
@@ -635,7 +635,7 @@ export default function ProfileScreen() {
                 >
                   <Text style={styles.blockUserAvatar}>{u.avatar_emoji}</Text>
                   <Text style={styles.blockUserName}>{u.username}</Text>
-                  <Text style={styles.blockUserAction}>Bloquer</Text>
+                  <Text style={styles.blockUserAction}>{lang === 'fr' ? "Bloquer" : "Block"}</Text>
                 </AnimatedPressable>
               ))
             )}
@@ -656,7 +656,7 @@ export default function ProfileScreen() {
         >
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Contacter le support</Text>
+              <Text style={styles.modalTitle}>{lang === 'fr' ? "Contacter le support" : "Contact Support"}</Text>
               <TouchableOpacity onPress={handleCloseSupportModal}>
                 <Text style={styles.modalClose}>✕</Text>
               </TouchableOpacity>
@@ -666,14 +666,14 @@ export default function ProfileScreen() {
               <View style={styles.supportSuccessContainer}>
                 <Text style={styles.supportSuccessEmoji}>💛</Text>
                 <Text style={styles.supportSuccessText}>
-                  Message envoyé ! On te répond sous 24h 💛
+                  {lang === 'fr' ? "Message envoyé ! On te répond sous 24h 💛" : "Message sent! We'll reply within 24h 💛"}
                 </Text>
               </View>
             ) : (
               <>
                 <TextInput
                   style={styles.supportInput}
-                  placeholder="Sujet"
+                  placeholder={lang === 'fr' ? "Sujet" : "Subject"}
                   placeholderTextColor={COLORS.textTertiary}
                   value={supportSubject}
                   onChangeText={(text) => {
@@ -687,7 +687,7 @@ export default function ProfileScreen() {
 
                 <TextInput
                   style={[styles.supportInput, styles.supportMessageInput]}
-                  placeholder="Décris ton problème..."
+                  placeholder={lang === 'fr' ? "Décris ton problème..." : "Describe your issue..."}
                   placeholderTextColor={COLORS.textTertiary}
                   value={supportMessage}
                   onChangeText={(text) => {
@@ -716,7 +716,7 @@ export default function ProfileScreen() {
                   {supportSending ? (
                     <ActivityIndicator color={COLORS.surface} size="small" />
                   ) : (
-                    <Text style={styles.supportSendButtonText}>Envoyer</Text>
+                    <Text style={styles.supportSendButtonText}>{lang === 'fr' ? "Envoyer" : "Send"}</Text>
                   )}
                 </AnimatedPressable>
 
@@ -725,7 +725,7 @@ export default function ProfileScreen() {
                   style={styles.supportCancelButton}
                   disabled={supportSending}
                 >
-                  <Text style={styles.supportCancelText}>Annuler</Text>
+                  <Text style={styles.supportCancelText}>{lang === 'fr' ? "Annuler" : "Cancel"}</Text>
                 </TouchableOpacity>
               </>
             )}

@@ -363,19 +363,18 @@ export default function ShopScreen() {
                 const isPurchasing = purchasingId === pack.id;
                 return (
                   <View key={pack.id} style={{ flex: 1 }}>
-                    {pack.label ? (
-                      <View style={styles.packBadgeWrapper}>
+                    <View style={styles.packBadgeWrapper}>
+                      {pack.label ? (
                         <View style={[styles.packBadge, isPopular && styles.packBadgePopular]}>
                           <Text style={styles.packBadgeText}>{pack.label}</Text>
                         </View>
-                      </View>
-                    ) : null}
-                    <View style={[styles.packCard, isPopular && styles.packCardPopular]}>
-                      {pack.discount && !pack.label && (
+                      ) : pack.discount ? (
                         <View style={styles.discountBadge}>
                           <Text style={styles.discountBadgeText}>{pack.discount}</Text>
                         </View>
-                      )}
+                      ) : null}
+                    </View>
+                    <View style={[styles.packCard, isPopular && styles.packCardPopular]}>
                       <Text style={[styles.packCredits, isPopular && styles.packCreditsPopular]}>
                         {pack.credits}
                       </Text>
@@ -703,6 +702,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: -10,
     zIndex: 10,
+    height: 20,
   },
   packBadge: {
     backgroundColor: COLORS.surfaceSecondary,
@@ -765,14 +765,10 @@ const styles = StyleSheet.create({
   },
   // Discount badge
   discountBadge: {
-    position: "absolute",
-    top: -12,
-    right: 8,
     backgroundColor: "#D1FAE5",
     borderRadius: 6,
     paddingHorizontal: 6,
     paddingVertical: 2,
-    zIndex: 10,
   },
   discountBadgeText: {
     fontSize: 10,

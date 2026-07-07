@@ -29,6 +29,7 @@
       }
     },
     "android": {
+      "package": "com.sesamelev.kindly",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/app-icon-nwx.png",
         "backgroundColor": "#FFFFFF"
